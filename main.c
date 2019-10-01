@@ -44,22 +44,14 @@ char* removeCommand() {
     return NULL;
 }
 
-void errorParse() {
-    fprintf(stderr, "Error: command invalid\n");
+void errorParse(FILE *fp) {
+    fprintf(fp, "Error: command invalid\n");
     //exit(EXIT_FAILURE);
 }
 
-void processInput(const char* ficheiro) {
+void processInput(FILE *fp) {
     char line[MAX_INPUT_SIZE];
 
-    FILE *fp;
-
-    fp = fopen(ficheiro, "r");
-
-    if(fp == NULL) {
-        printf("Erro a abrir ficheiro");
-        return;
-    }
     while (fgets(line, sizeof(line)/sizeof(char), fp)) {
         char token;
         char name[MAX_INPUT_SIZE];
@@ -73,7 +65,7 @@ void processInput(const char* ficheiro) {
             case 'c':
             case 'l':
             case 'd':
-                if(numTokens != 2) errorParse();
+                if(numTokens != 2) errorParse(fp);
 
                 if(insertCommand(line)) break;
 
@@ -81,13 +73,15 @@ void processInput(const char* ficheiro) {
             case '#':
                 break;
             default: { /* error */
-                errorParse();
+                errorParse(fp);
             }
         }
     }
+
+    fclose(fp);
 }
 
-void applyCommands() {
+void applyCommands(FILE *fp) {
     while(numberCommands > 0) {
         const char* command = removeCommand();
 
@@ -113,9 +107,9 @@ void applyCommands() {
             case 'l':
                 searchResult = lookup(fs, name);
                 if(!searchResult)
-                    printf("%s not found\n", name);
+                    fprintf(fp, "%s not found\n", name);
                 else
-                    printf("%s found with inumber %d\n", name, searchResult);
+                    fprintf(fp, "%s found with inumber %d\n", name, searchResult);
                 break;
             case 'd':
                 delete(fs, name);
@@ -128,17 +122,31 @@ void applyCommands() {
     }
 }
 
-int main(int argc, char* argv[]) {
+FILE* openFile(const char *ficheiro, const char *modo) {
+    FILE *fp = fopen(ficheiro, modo);
+
+    if(fp == NULL) {
+        if(!strcmp(modo, "r"))
+            fprintf(stderr, "Error: no input file\n");
+        else
+            fprintf(stderr, "Error: no output file\n");
+        exit(EXIT_FAILURE);
+    }
+    return fp;
+}
+
+int main(int argc, char *argv[]) {
     clock_t start = clock();
     double time;
+    FILE *fpI = openFile(argv[1], "r"), *fpO = openFile(argv[2], "w");
 
     parseArgs(argc, argv);
 
     fs = new_tecnicofs();
-    processInput(argv[1]);
-    applyCommands();
+    processInput(fpI);
+    applyCommands(fpO);
 
-    print_tecnicofs_tree(argv[2], fs);
+    print_tecnicofs_tree(fpO, fs);
 
     free_tecnicofs(fs);
 

@@ -40,15 +40,7 @@ int lookup(tecnicofs *fs, char* name) {
 	return 0;
 }
 
-void print_tecnicofs_tree(char *ficheiro, tecnicofs *fs) {
-    FILE *fp;
-
-    fp = fopen(ficheiro, "w");
-
-	if(fp == NULL) {
-		return;
-	}
-	
+void print_tecnicofs_tree(FILE *fp, tecnicofs *fs) {
 	print_tree(fp, fs->bstRoot);
 
 	fclose(fp);
