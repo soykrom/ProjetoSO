@@ -4,6 +4,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <time.h>
+#include <phtread.h>
 #include "fs.h"
 
 #define MAX_COMMANDS 150000
@@ -81,7 +82,7 @@ void processInput(FILE *fp) {
     fclose(fp);
 }
 
-void applyCommands(FILE *fp) {
+void applyCommands() {
     while(numberCommands > 0) {
         const char* command = removeCommand();
 
@@ -107,9 +108,9 @@ void applyCommands(FILE *fp) {
             case 'l':
                 searchResult = lookup(fs, name);
                 if(!searchResult)
-                    fprintf(fp, "%s not found\n", name);
+                    fprintf(stderr, "%s not found\n", name);
                 else
-                    fprintf(fp, "%s found with inumber %d\n", name, searchResult);
+                    fprintf(stderr, "%s found with inumber %d\n", name, searchResult);
                 break;
             case 'd':
                 delete(fs, name);
@@ -138,13 +139,14 @@ FILE* openFile(const char *ficheiro, const char *modo) {
 int main(int argc, char *argv[]) {
     clock_t start = clock();
     double time;
-    FILE *fpI = openFile(argv[1], "r"), *fpO = openFile(argv[2], "w");
+    FILE *fpI = openFile(argv[1], "r"); 
+    FILE *fpO = openFile(argv[2], "w");
 
     parseArgs(argc, argv);
 
     fs = new_tecnicofs();
     processInput(fpI);
-    applyCommands(fpO);
+    applyCommands();
 
     print_tecnicofs_tree(fpO, fs);
 
@@ -152,7 +154,7 @@ int main(int argc, char *argv[]) {
 
     start = clock() - start;
     time = (double) start / CLOCKS_PER_SEC;
-    printf("TecnicoFS completed in %f seconds.\n", time);
+    printf("TecnicoFS completed in %0.4f seconds.\n", time);
 
     exit(EXIT_SUCCESS);
 }
