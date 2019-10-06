@@ -96,7 +96,6 @@ void applyCommands() {
             fprintf(stderr, "Error: invalid command in Queue\n");
             exit(EXIT_FAILURE);
         }
-
         int searchResult;
         int iNumber;
         
