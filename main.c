@@ -4,15 +4,18 @@
 #include <string.h>
 #include <ctype.h>
 #include <time.h>
-#include <phtread.h>
+#include <pthread.h>
+#include <unistd.h>
 #include "fs.h"
 
 #define MAX_COMMANDS 150000
 #define MAX_INPUT_SIZE 100
 
 int numberThreads = 0;
-tecnicofs *fs;
+pthread_mutex_t lock; //So... many... bugs
+pthread_t *threads = NULL;
 
+tecnicofs *fs;
 char inputCommands[MAX_COMMANDS][MAX_INPUT_SIZE];
 int numberCommands = 0;
 int headQueue = 0;
@@ -23,7 +26,7 @@ static void displayUsage (const char* appName) {
 }
 
 static void parseArgs (long argc, char* const argv[]) {
-    if (argc != 3) {
+    if (argc != 4) {
         fprintf(stderr, "Invalid format:\n");
         displayUsage(argv[0]);
     }
@@ -38,7 +41,7 @@ int insertCommand(char* data) {
 }
 
 char* removeCommand() {
-    if((numberCommands + 1)) {
+    if((numberCommands)) {
         numberCommands--;
         return inputCommands[headQueue++];  
     }
@@ -82,44 +85,49 @@ void processInput(FILE *fp) {
     fclose(fp);
 }
 
-void applyCommands() {
-    while(numberCommands > 0) {
-        const char* command = removeCommand();
+void* applyCommands() {
+    pthread_mutex_lock(&lock);
 
-        if (command == NULL) continue;
+    const char* command = removeCommand();
 
-        char token;
-        char name[MAX_INPUT_SIZE];
-        int numTokens = sscanf(command, "%c %s", &token, name);
+    if (command == NULL) return NULL;
 
-        if (numTokens != 2) {
-            fprintf(stderr, "Error: invalid command in Queue\n");
+    char token;
+    char name[MAX_INPUT_SIZE];
+    int numTokens = sscanf(command, "%c %s", &token, name);
+
+
+    printf("%c %s %d\n", token, name, numTokens);
+    if (numTokens != 2) {
+        fprintf(stderr, "Error: invalid command in Queue\n");
+        exit(EXIT_FAILURE);
+    }
+
+    int searchResult;
+    int iNumber;
+    
+    switch (token) {
+        case 'c':
+            iNumber = obtainNewInumber(fs);
+            create(fs, name, iNumber);
+            break;
+        case 'l':
+            searchResult = lookup(fs, name);
+            if(!searchResult)
+                fprintf(stderr, "%s not found\n", name);
+            else
+                fprintf(stderr, "%s found with inumber %d\n", name, searchResult);
+            break;
+        case 'd':
+            delete(fs, name);
+            break;
+        default: { /* error */
+            fprintf(stderr, "Error: command to apply\n");
             exit(EXIT_FAILURE);
         }
-        int searchResult;
-        int iNumber;
-        
-        switch (token) {
-            case 'c':
-                iNumber = obtainNewInumber(fs);
-                create(fs, name, iNumber);
-                break;
-            case 'l':
-                searchResult = lookup(fs, name);
-                if(!searchResult)
-                    fprintf(stderr, "%s not found\n", name);
-                else
-                    fprintf(stderr, "%s found with inumber %d\n", name, searchResult);
-                break;
-            case 'd':
-                delete(fs, name);
-                break;
-            default: { /* error */
-                fprintf(stderr, "Error: command to apply\n");
-                exit(EXIT_FAILURE);
-            }
-        }
     }
+    pthread_mutex_unlock(&lock);
+    return NULL;
 }
 
 FILE* openFile(const char *ficheiro, const char *modo) {
@@ -135,17 +143,26 @@ FILE* openFile(const char *ficheiro, const char *modo) {
     return fp;
 }
 
+
 int main(int argc, char *argv[]) {
     clock_t start = clock();
     double time;
     FILE *fpI = openFile(argv[1], "r"); 
     FILE *fpO = openFile(argv[2], "w");
+    int i = 0;
+
+    pthread_mutex_init(&lock, NULL);
+    numberThreads =  atoi(argv[3]);
+    threads = (pthread_t*) malloc(sizeof(pthread_t*) * numberThreads);
 
     parseArgs(argc, argv);
 
     fs = new_tecnicofs();
     processInput(fpI);
-    applyCommands();
+
+    for(; i < numberThreads; i++) {
+        pthread_create(&threads[i], NULL, *applyCommands, NULL);
+    }
 
     print_tecnicofs_tree(fpO, fs);
 
@@ -155,5 +172,6 @@ int main(int argc, char *argv[]) {
     time = (double) start / CLOCKS_PER_SEC;
     printf("TecnicoFS completed in %0.4f seconds.\n", time);
 
+    free(threads);
     exit(EXIT_SUCCESS);
 }
