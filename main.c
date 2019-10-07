@@ -14,6 +14,8 @@
 int numberThreads = 0;
 pthread_mutex_t lockM;
 pthread_mutex_t lockFS;
+pthread_rwlock_t rwlockM;
+pthread_rwlock_t rwlockFS;
 pthread_t *threads = NULL;
 
 tecnicofs *fs;
@@ -88,11 +90,20 @@ void processInput(FILE *fp) {
 
 void* applyCommands() {
     while(numberCommands > 0) {
+        #ifdef MUTEX
         pthread_mutex_lock(&lockM);
+        #elif RWLOCK
+        pthread_rwlock_wrlock(&rwlockM);
+        #endif
+
         const char* command = removeCommand();
         
         if (command == NULL) {
+            #ifdef MUTEX
             pthread_mutex_unlock(&lockM);
+            #elif RWLOCK
+            pthread_rwlock_unlock(&rwlockM);
+            #endif
             return NULL;
         }
 
@@ -102,7 +113,11 @@ void* applyCommands() {
         int iNumber;
 
         if(token == 'c') iNumber = obtainNewInumber(fs);
+        #ifdef MUTEX
         pthread_mutex_unlock(&lockM);
+        #elif RWLOCK
+        pthread_rwlock_unlock(&rwlockM);
+        #endif
 
         if (numTokens != 2) {
             fprintf(stderr, "Error: invalid command in Queue\n");
@@ -112,24 +127,48 @@ void* applyCommands() {
         int searchResult;
         
         switch (token) {
-            case 'c':
+            case 'c':   
+                #ifdef MUTEX
                 pthread_mutex_lock(&lockFS);
+                #elif RWLOCK
+                pthread_rwlock_wrlock(&rwlockFS);
+                #endif
                 create(fs, name, iNumber);
+                #ifdef MUTEX
                 pthread_mutex_unlock(&lockFS);
+                #elif RWLOCK
+                pthread_rwlock_unlock(&rwlockFS);
+                #endif
                 break;
             case 'l':
+                #ifdef MUTEX
                 pthread_mutex_lock(&lockFS);
+                #elif RWLOCK
+                pthread_rwlock_rdlock(&rwlockFS);
+                #endif
                 searchResult = lookup(fs, name);
                 if(!searchResult)
                     fprintf(stderr, "%s not found\n", name);
                 else
                     fprintf(stderr, "%s found with inumber %d\n", name, searchResult);
+                #ifdef MUTEX                
                 pthread_mutex_unlock(&lockFS);
+                #elif RWLOCK
+                pthread_rwlock_unlock(&rwlockFS);
+                #endif
                 break;
             case 'd':
+                #ifdef MUTEX
                 pthread_mutex_lock(&lockFS);
+                #elif RWLOCK
+                pthread_rwlock_wrlock(&rwlockFS);
+                #endif
                 delete(fs, name);
+                #ifdef MUTEX
                 pthread_mutex_unlock(&lockFS);
+                #elif RWLOCK
+                pthread_rwlock_unlock(&rwlockFS);
+                #endif
                 break;
             default: { /* error */
                 fprintf(stderr, "Error: command to apply\n");
