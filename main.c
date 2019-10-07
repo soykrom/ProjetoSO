@@ -12,7 +12,8 @@
 #define MAX_INPUT_SIZE 100
 
 int numberThreads = 0;
-pthread_mutex_t lock; //So... many... bugs
+pthread_mutex_t lockM;
+pthread_mutex_t lockFS;
 pthread_t *threads = NULL;
 
 tecnicofs *fs;
@@ -86,47 +87,56 @@ void processInput(FILE *fp) {
 }
 
 void* applyCommands() {
-    pthread_mutex_lock(&lock);
+    while(numberCommands > 0) {
+        pthread_mutex_lock(&lockM);
+        const char* command = removeCommand();
+        
+        if (command == NULL) {
+            pthread_mutex_unlock(&lockM);
+            return NULL;
+        }
 
-    const char* command = removeCommand();
+        char token;
+        char name[MAX_INPUT_SIZE];
+        int numTokens = sscanf(command, "%c %s", &token, name);
+        int iNumber;
 
-    if (command == NULL) return NULL;
+        if(token == 'c') iNumber = obtainNewInumber(fs);
+        pthread_mutex_unlock(&lockM);
 
-    char token;
-    char name[MAX_INPUT_SIZE];
-    int numTokens = sscanf(command, "%c %s", &token, name);
-
-
-    printf("%c %s %d\n", token, name, numTokens);
-    if (numTokens != 2) {
-        fprintf(stderr, "Error: invalid command in Queue\n");
-        exit(EXIT_FAILURE);
-    }
-
-    int searchResult;
-    int iNumber;
-    
-    switch (token) {
-        case 'c':
-            iNumber = obtainNewInumber(fs);
-            create(fs, name, iNumber);
-            break;
-        case 'l':
-            searchResult = lookup(fs, name);
-            if(!searchResult)
-                fprintf(stderr, "%s not found\n", name);
-            else
-                fprintf(stderr, "%s found with inumber %d\n", name, searchResult);
-            break;
-        case 'd':
-            delete(fs, name);
-            break;
-        default: { /* error */
-            fprintf(stderr, "Error: command to apply\n");
+        if (numTokens != 2) {
+            fprintf(stderr, "Error: invalid command in Queue\n");
             exit(EXIT_FAILURE);
         }
+
+        int searchResult;
+        
+        switch (token) {
+            case 'c':
+                pthread_mutex_lock(&lockFS);
+                create(fs, name, iNumber);
+                pthread_mutex_unlock(&lockFS);
+                break;
+            case 'l':
+                pthread_mutex_lock(&lockFS);
+                searchResult = lookup(fs, name);
+                if(!searchResult)
+                    fprintf(stderr, "%s not found\n", name);
+                else
+                    fprintf(stderr, "%s found with inumber %d\n", name, searchResult);
+                pthread_mutex_unlock(&lockFS);
+                break;
+            case 'd':
+                pthread_mutex_lock(&lockFS);
+                delete(fs, name);
+                pthread_mutex_unlock(&lockFS);
+                break;
+            default: { /* error */
+                fprintf(stderr, "Error: command to apply\n");
+                exit(EXIT_FAILURE);
+            }
+        }
     }
-    pthread_mutex_unlock(&lock);
     return NULL;
 }
 
@@ -151,7 +161,9 @@ int main(int argc, char *argv[]) {
     FILE *fpO = openFile(argv[2], "w");
     int i = 0;
 
-    pthread_mutex_init(&lock, NULL);
+    pthread_mutex_init(&lockM, NULL);
+    pthread_mutex_init(&lockFS, NULL);
+
     numberThreads =  atoi(argv[3]);
     threads = (pthread_t*) malloc(sizeof(pthread_t*) * numberThreads);
 
@@ -162,6 +174,10 @@ int main(int argc, char *argv[]) {
 
     for(; i < numberThreads; i++) {
         pthread_create(&threads[i], NULL, *applyCommands, NULL);
+    }
+
+    for(i = 0; i < numberThreads; i++) {
+        pthread_join(threads[i], NULL);
     }
 
     print_tecnicofs_tree(fpO, fs);
