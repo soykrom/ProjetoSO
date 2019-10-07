@@ -8,6 +8,21 @@
 #include <unistd.h>
 #include "fs.h"
 
+#ifdef MUTEX
+#define MUTEX_LOCK(X) pthread_mutex_lock(X)
+#define MUTEX_UNLOCK(X) pthread_mutex_unlock(X)
+#define RD_LOCK(X)
+#define RW_LOCK(X)
+#define RW_UNLOCK(X)
+
+#else
+#define RW_LOCK(X) pthread_rwlock_wrlock(X)
+#define RW_UNLOCK(X) pthread_rwlock_unlock(X)
+#define RD_LOCK(X) pthread_rwlock_rdlock(X)
+#define MUTEX_LOCK(X)
+#define MUTEX_UNLOCK(X)
+#endif
+
 #define MAX_COMMANDS 150000
 #define MAX_INPUT_SIZE 100
 
@@ -90,20 +105,14 @@ void processInput(FILE *fp) {
 
 void* applyCommands() {
     while(numberCommands > 0) {
-        #ifdef MUTEX
-        pthread_mutex_lock(&lockM);
-        #elif RWLOCK
-        pthread_rwlock_wrlock(&rwlockM);
-        #endif
+        MUTEX_LOCK(&lockM);
+        RW_LOCK(&rwlockM);
 
         const char* command = removeCommand();
         
         if (command == NULL) {
-            #ifdef MUTEX
-            pthread_mutex_unlock(&lockM);
-            #elif RWLOCK
-            pthread_rwlock_unlock(&rwlockM);
-            #endif
+            MUTEX_UNLOCK(&lockM);
+            RW_UNLOCK(&rwlockM);
             return NULL;
         }
 
@@ -113,12 +122,10 @@ void* applyCommands() {
         int iNumber;
 
         if(token == 'c') iNumber = obtainNewInumber(fs);
-        
-        #ifdef MUTEX
-        pthread_mutex_unlock(&lockM);
-        #elif RWLOCK
-        pthread_rwlock_unlock(&rwlockM);
-        #endif
+
+        MUTEX_UNLOCK(&lockM);
+        RW_UNLOCK(&rwlockM);
+        return NULL;
 
         if (numTokens != 2) {
             fprintf(stderr, "Error: invalid command in Queue\n");
@@ -129,26 +136,17 @@ void* applyCommands() {
         
         switch (token) {
             case 'c':   
-                #ifdef MUTEX
-                pthread_mutex_lock(&lockFS);
-                #elif RWLOCK
-                pthread_rwlock_wrlock(&rwlockFS);
-                #endif
+                MUTEX_LOCK(&lockFS);
+                RW_LOCK(&rwlockFS);
 
                 create(fs, name, iNumber);
 
-                #ifdef MUTEX
-                pthread_mutex_unlock(&lockFS);
-                #elif RWLOCK
-                pthread_rwlock_unlock(&rwlockFS);
-                #endif
+                MUTEX_UNLOCK(&lockFS);
+                RW_UNLOCK(&rwlockFS);
                 break;
             case 'l':
-                #ifdef MUTEX
-                pthread_mutex_lock(&lockFS);
-                #elif RWLOCK
-                pthread_rwlock_rdlock(&rwlockFS);
-                #endif
+                MUTEX_LOCK(&lockFS);
+                RD_LOCK(&rwlockFS);
 
                 searchResult = lookup(fs, name);
                 if(!searchResult)
@@ -156,26 +154,17 @@ void* applyCommands() {
                 else
                     fprintf(stderr, "%s found with inumber %d\n", name, searchResult);
 
-                #ifdef MUTEX                
-                pthread_mutex_unlock(&lockFS);
-                #elif RWLOCK
-                pthread_rwlock_unlock(&rwlockFS);
-                #endif
+                MUTEX_UNLOCK(&lockFS);
+                RW_UNLOCK(&rwlockFS);
                 break;
             case 'd':
-                #ifdef MUTEX
-                pthread_mutex_lock(&lockFS);
-                #elif RWLOCK
-                pthread_rwlock_wrlock(&rwlockFS);
-                #endif
+                MUTEX_LOCK(&lockFS);
+                RD_LOCK(&rwlockFS);
 
                 delete(fs, name);
 
-                #ifdef MUTEX
-                pthread_mutex_unlock(&lockFS);
-                #elif RWLOCK
-                pthread_rwlock_unlock(&rwlockFS);
-                #endif
+                MUTEX_UNLOCK(&lockFS);
+                RW_UNLOCK(&rwlockFS);
                 break;
             default: { /* error */
                 fprintf(stderr, "Error: command to apply\n");
@@ -199,6 +188,13 @@ FILE* openFile(const char *ficheiro, const char *modo) {
     return fp;
 }
 
+void create_locks() {
+    if(pthread_mutex_init(&lockM, NULL) != 0 || pthread_mutex_init(&lockFS, NULL) != 0 ||
+    pthread_rwlock_init(&rwlockM, NULL) != 0 || pthread_rwlock_init(&rwlockFS, NULL) != 0) {
+        fprintf(stderr, "Error: lock creation failed");
+        exit(EXIT_FAILURE);
+    }
+}
 
 int main(int argc, char *argv[]) {
     clock_t start = clock();
@@ -207,9 +203,6 @@ int main(int argc, char *argv[]) {
     FILE *fpO = openFile(argv[2], "w");
     int i = 0;
 
-    pthread_mutex_init(&lockM, NULL);
-    pthread_mutex_init(&lockFS, NULL);
-
     numberThreads =  atoi(argv[3]);
     threads = (pthread_t*) malloc(sizeof(pthread_t*) * numberThreads);
 
@@ -217,6 +210,8 @@ int main(int argc, char *argv[]) {
 
     fs = new_tecnicofs();
     processInput(fpI);
+
+    create_locks();
 
     for(; i < numberThreads; i++) {
         pthread_create(&threads[i], NULL, *applyCommands, NULL);
