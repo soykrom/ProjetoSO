@@ -12,8 +12,12 @@
 #define MAX_INPUT_SIZE 100
 
 int numberThreads = 0;
-pthread_mutex_t lockM;
-pthread_mutex_t lockFS;
+pthread_rwlock_t rwlockM;
+pthread_rwlock_t rwlockFS;
+
+//pthread_mutex_t lockM;
+//pthread_mutex_t lockFS;
+
 pthread_t *threads = NULL;
 
 tecnicofs *fs;
@@ -44,7 +48,7 @@ int insertCommand(char* data) {
 char* removeCommand() {
     if((numberCommands)) {
         numberCommands--;
-        return inputCommands[headQueue++];  
+        return inputCommands[headQueue++];
     }
     return NULL;
 }
@@ -88,11 +92,12 @@ void processInput(FILE *fp) {
 
 void* applyCommands() {
     while(numberCommands > 0) {
-        pthread_mutex_lock(&lockM);
+        //pthread_mutex_lock(&lockM);
+        pthread_rwlock_wrlock(&rwlockM);
         const char* command = removeCommand();
-        
+
         if (command == NULL) {
-            pthread_mutex_unlock(&lockM);
+            //pthread_mutex_unlock(&lockM);
             return NULL;
         }
 
@@ -102,7 +107,8 @@ void* applyCommands() {
         int iNumber;
 
         if(token == 'c') iNumber = obtainNewInumber(fs);
-        pthread_mutex_unlock(&lockM);
+        //pthread_mutex_unlock(&lockM);
+        pthread_rwlock_unlock(&rwlockM);
 
         if (numTokens != 2) {
             fprintf(stderr, "Error: invalid command in Queue\n");
@@ -110,26 +116,32 @@ void* applyCommands() {
         }
 
         int searchResult;
-        
+
         switch (token) {
             case 'c':
-                pthread_mutex_lock(&lockFS);
+                pthread_rwlock_wrlock(&rwlockFS);
+                //pthread_mutex_lock(&lockFS);
                 create(fs, name, iNumber);
-                pthread_mutex_unlock(&lockFS);
+                //pthread_mutex_unlock(&lockFS);
+                pthread_rwlock_unlock(&rwlockFS);
                 break;
             case 'l':
-                pthread_mutex_lock(&lockFS);
+                //pthread_mutex_lock(&lockFS);
+                pthread_rwlock_rdlock(&rwlockFS);
                 searchResult = lookup(fs, name);
                 if(!searchResult)
                     fprintf(stderr, "%s not found\n", name);
                 else
                     fprintf(stderr, "%s found with inumber %d\n", name, searchResult);
-                pthread_mutex_unlock(&lockFS);
+                //pthread_mutex_unlock(&lockFS);
+                pthread_rwlock_unlock(&rwlockFS);
                 break;
             case 'd':
-                pthread_mutex_lock(&lockFS);
+                pthread_rwlock_wrlock(&rwlockFS);
+                //pthread_mutex_lock(&lockFS);
                 delete(fs, name);
-                pthread_mutex_unlock(&lockFS);
+                //pthread_mutex_unlock(&lockFS);
+                pthread_rwlock_unlock(&rwlockFS);
                 break;
             default: { /* error */
                 fprintf(stderr, "Error: command to apply\n");
@@ -157,12 +169,14 @@ FILE* openFile(const char *ficheiro, const char *modo) {
 int main(int argc, char *argv[]) {
     clock_t start = clock();
     double time;
-    FILE *fpI = openFile(argv[1], "r"); 
+    FILE *fpI = openFile(argv[1], "r");
     FILE *fpO = openFile(argv[2], "w");
     int i = 0;
 
-    pthread_mutex_init(&lockM, NULL);
-    pthread_mutex_init(&lockFS, NULL);
+    pthread_rwlock_init(&rwlockM, NULL);
+    pthread_rwlock_init(&rwlockFS, NULL);
+    //pthread_mutex_init(&lockM, NULL);
+    //pthread_mutex_init(&lockFS, NULL);
 
     numberThreads =  atoi(argv[3]);
     threads = (pthread_t*) malloc(sizeof(pthread_t*) * numberThreads);
