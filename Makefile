@@ -3,7 +3,10 @@
 
 CC   = gcc
 LD   = gcc
-CFLAGS =-Wall -std=gnu99 -I../
+CFLAGSMX =-Wall -DMUTEX -std=gnu99 -I../
+CFLAGSWR =-Wall -DWRLOCK -std=gnu99 -I../
+CFLAGSNS =-Wall -std=gnu99 -I../
+
 LDFLAGS=-lm -pthread
 
 # A phony target is one that is not really the name of a file
@@ -13,7 +16,9 @@ LDFLAGS=-lm -pthread
 all: tecnicofs
 
 tecnicofs: lib/bst.o fs.o main.o
-	$(LD) $(CFLAGS) $(LDFLAGS) -o tecnicofs lib/bst.o fs.o main.o
+	$(LD) $(CFLAGSMX) $(LDFLAGS) -o tecnicofs-mutex lib/bst.o fs.o main.o
+	$(LD) $(CFLAGSWR) $(LDFLAGS) -o tecnicofs-rwlock lib/bst.o fs.o main.o
+	$(LD) $(CFLAGSNS) $(LDFLAGS) -o tecnicofs-nosync lib/bst.o fs.o main.o
 
 lib/bst.o: lib/bst.c lib/bst.h
 	$(CC) $(CFLAGS) -o lib/bst.o -c lib/bst.c
@@ -29,4 +34,6 @@ clean:
 	rm -f lib/*.o *.o tecnicofs
 
 run: tecnicofs
-	./tecnicofs inputs/test1.txt outputs/test1.txt 10
+	./tecnicofs-mutex inputs/test1.txt outputs/test1.txt 10
+	./tecnicofs-rwlock inputs/test1.txt outputs/test1.txt 10
+	./tecnicofs-nosync inputs/test1.txt outputs/test1.txt 1

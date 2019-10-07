@@ -113,6 +113,7 @@ void* applyCommands() {
         int iNumber;
 
         if(token == 'c') iNumber = obtainNewInumber(fs);
+        
         #ifdef MUTEX
         pthread_mutex_unlock(&lockM);
         #elif RWLOCK
@@ -133,7 +134,9 @@ void* applyCommands() {
                 #elif RWLOCK
                 pthread_rwlock_wrlock(&rwlockFS);
                 #endif
+
                 create(fs, name, iNumber);
+
                 #ifdef MUTEX
                 pthread_mutex_unlock(&lockFS);
                 #elif RWLOCK
@@ -146,11 +149,13 @@ void* applyCommands() {
                 #elif RWLOCK
                 pthread_rwlock_rdlock(&rwlockFS);
                 #endif
+
                 searchResult = lookup(fs, name);
                 if(!searchResult)
                     fprintf(stderr, "%s not found\n", name);
                 else
                     fprintf(stderr, "%s found with inumber %d\n", name, searchResult);
+
                 #ifdef MUTEX                
                 pthread_mutex_unlock(&lockFS);
                 #elif RWLOCK
@@ -163,7 +168,9 @@ void* applyCommands() {
                 #elif RWLOCK
                 pthread_rwlock_wrlock(&rwlockFS);
                 #endif
+
                 delete(fs, name);
+
                 #ifdef MUTEX
                 pthread_mutex_unlock(&lockFS);
                 #elif RWLOCK
@@ -230,3 +237,4 @@ int main(int argc, char *argv[]) {
     free(threads);
     exit(EXIT_SUCCESS);
 }
+
