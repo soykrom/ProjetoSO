@@ -26,6 +26,7 @@
 #define MAX_COMMANDS 150000
 #define MAX_INPUT_SIZE 100
 
+
 int numberThreads = 0;
 pthread_mutex_t lockM;
 pthread_mutex_t lockFS;
