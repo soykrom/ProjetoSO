@@ -1,1 +1,0 @@
-for run in {1..1000}; do ./tecnicofs-rwlock inputs/test1.txt outputs/test1.txt 10; done
