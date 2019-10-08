@@ -143,7 +143,6 @@ void* applyCommands() {
         int searchResult;
         
         switch (token) {
-            printf("Got here\n");
             case 'c':   
                 MUTEX_LOCK(&lockFS);
                 RW_LOCK(&rwlockFS);
