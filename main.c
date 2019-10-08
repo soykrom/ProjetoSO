@@ -15,12 +15,20 @@
 #define RW_LOCK(X)
 #define RW_UNLOCK(X)
 
-#else
+#elif RWLOCK
 #define RW_LOCK(X) if(pthread_rwlock_wrlock(X) != 0) {fprintf(stderr, "Error: locking failed"); exit(EXIT_FAILURE);}
 #define RD_LOCK(X) if(pthread_rwlock_rdlock(X) != 0) {fprintf(stderr, "Error: locking failed"); exit(EXIT_FAILURE);}
 #define RW_UNLOCK(X) if(pthread_rwlock_unlock(X) != 0) {fprintf(stderr, "Error: unlocking failed"); exit(EXIT_FAILURE);}
 #define MUTEX_LOCK(X)
 #define MUTEX_UNLOCK(X)
+
+#else
+#define MUTEX_LOCK(X)
+#define MUTEX_UNLOCK(X)
+#define RD_LOCK(X)
+#define RW_LOCK(X)
+#define RW_UNLOCK(X)
+
 #endif
 
 #define MAX_COMMANDS 150000
@@ -60,7 +68,7 @@ int insertCommand(char* data) {
 }
 
 char* removeCommand() {
-    if((numberCommands)) {
+    if((numberCommands > 0)) {
         numberCommands--;
         return inputCommands[headQueue++];  
     }
@@ -126,7 +134,6 @@ void* applyCommands() {
 
         MUTEX_UNLOCK(&lockM);
         RW_UNLOCK(&rwlockM);
-        return NULL;
 
         if (numTokens != 2) {
             fprintf(stderr, "Error: invalid command in Queue\n");
@@ -136,6 +143,7 @@ void* applyCommands() {
         int searchResult;
         
         switch (token) {
+            printf("Got here\n");
             case 'c':   
                 MUTEX_LOCK(&lockFS);
                 RW_LOCK(&rwlockFS);
@@ -148,19 +156,18 @@ void* applyCommands() {
             case 'l':
                 MUTEX_LOCK(&lockFS);
                 RD_LOCK(&rwlockFS);
-
                 searchResult = lookup(fs, name);
                 if(!searchResult)
-                    fprintf(stderr, "%s not found\n", name);
+                    printf("%s not found\n", name);
                 else
-                    fprintf(stderr, "%s found with inumber %d\n", name, searchResult);
+                    printf("%s found with inumber %d\n", name, searchResult);
 
                 MUTEX_UNLOCK(&lockFS);
                 RW_UNLOCK(&rwlockFS);
                 break;
             case 'd':
                 MUTEX_LOCK(&lockFS);
-                RD_LOCK(&rwlockFS);
+                RW_LOCK(&rwlockFS);
 
                 delete(fs, name);
 
@@ -173,6 +180,7 @@ void* applyCommands() {
             }
         }
     }
+
     return NULL;
 }
 

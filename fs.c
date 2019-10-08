@@ -10,12 +10,13 @@ int obtainNewInumber(tecnicofs *fs) {
 }
 
 tecnicofs* new_tecnicofs() {
-	tecnicofs*fs = malloc(sizeof(tecnicofs));
+	tecnicofs *fs = malloc(sizeof(tecnicofs));
 	if(!fs) {
 		perror("failed to allocate tecnicofs");
 		exit(EXIT_FAILURE);
 	}
 	fs->bstRoot = NULL;
+	fs->nextINumber = 0;
 	return fs;
 }
 

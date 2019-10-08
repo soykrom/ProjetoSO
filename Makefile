@@ -46,3 +46,15 @@ run: all
 	./tecnicofs-mutex inputs/test1.txt outputs/test1.txt 10
 	./tecnicofs-rwlock inputs/test1.txt outputs/test1.txt 10
 	./tecnicofs-nosync inputs/test1.txt outputs/test1.txt 1
+
+	./tecnicofs-mutex inputs/test2.txt outputs/test2.txt 10
+	./tecnicofs-rwlock inputs/test2.txt outputs/test2.txt 10
+	./tecnicofs-nosync inputs/test2.txt outputs/test2.txt 1
+
+	./tecnicofs-mutex inputs/test3.txt outputs/test3.txt 10
+	./tecnicofs-rwlock inputs/test3.txt outputs/test3.txt 10
+	./tecnicofs-nosync inputs/test3.txt outputs/test3.txt 1
+
+	./tecnicofs-mutex inputs/test4.txt outputs/test4.txt 10
+	./tecnicofs-rwlock inputs/test4.txt outputs/test4.txt 10
+	./tecnicofs-nosync inputs/test4.txt outputs/test4.txt 1
