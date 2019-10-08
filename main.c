@@ -9,16 +9,16 @@
 #include "fs.h"
 
 #ifdef MUTEX
-#define MUTEX_LOCK(X) pthread_mutex_lock(X)
-#define MUTEX_UNLOCK(X) pthread_mutex_unlock(X)
+#define MUTEX_LOCK(X) if(pthread_mutex_lock(X) != 0) {fprintf(stderr, "Error: locking failed"); exit(EXIT_FAILURE);}
+#define MUTEX_UNLOCK(X) if(pthread_mutex_unlock(X) != 0) {fprintf(stderr, "Error: unlocking failed"); exit(EXIT_FAILURE);}
 #define RD_LOCK(X)
 #define RW_LOCK(X)
 #define RW_UNLOCK(X)
 
 #else
-#define RW_LOCK(X) pthread_rwlock_wrlock(X)
-#define RW_UNLOCK(X) pthread_rwlock_unlock(X)
-#define RD_LOCK(X) pthread_rwlock_rdlock(X)
+#define RW_LOCK(X) if(pthread_rwlock_wrlock(X) != 0) {fprintf(stderr, "Error: locking failed"); exit(EXIT_FAILURE);}
+#define RD_LOCK(X) if(pthread_rwlock_rdlock(X) != 0) {fprintf(stderr, "Error: locking failed"); exit(EXIT_FAILURE);}
+#define RW_UNLOCK(X) if(pthread_rwlock_unlock(X) != 0) {fprintf(stderr, "Error: unlocking failed"); exit(EXIT_FAILURE);}
 #define MUTEX_LOCK(X)
 #define MUTEX_UNLOCK(X)
 #endif
