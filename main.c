@@ -214,7 +214,7 @@ void create_locks() {
 }
 
 int main(int argc, char *argv[]) {
-    clock_t start = clock();
+    clock_t start;
     double time;
     FILE *fpI = openFile(argv[1], "r"); 
     FILE *fpO = openFile(argv[2], "w");
@@ -230,6 +230,8 @@ int main(int argc, char *argv[]) {
 
     create_locks();
 
+    start = clock();
+
     for(; i < numberThreads; i++) {
         pthread_create(&threads[i], NULL, *applyCommands, NULL);
     }
@@ -238,13 +240,13 @@ int main(int argc, char *argv[]) {
         pthread_join(threads[i], NULL);
     }
 
-    print_tecnicofs_tree(fpO, fs);
-
-    free_tecnicofs(fs);
-
     start = clock() - start;
     time = (double) start / CLOCKS_PER_SEC;
     printf("TecnicoFS completed in %0.4f seconds.\n", time);
+    
+    print_tecnicofs_tree(fpO, fs);
+
+    free_tecnicofs(fs);
 
     free(threads);
     exit(EXIT_SUCCESS);
