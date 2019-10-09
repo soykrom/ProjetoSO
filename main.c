@@ -8,19 +8,22 @@
 #include <unistd.h>
 #include "fs.h"
 
+
 #ifdef MUTEX
+#define MUTEX_INIT(X) pthread_mutex_init(X, NULL)
 #define MUTEX_LOCK(X) if(pthread_mutex_lock(X) != 0) {fprintf(stderr, "Error: locking failed"); exit(EXIT_FAILURE);}
 #define MUTEX_UNLOCK(X) if(pthread_mutex_unlock(X) != 0) {fprintf(stderr, "Error: unlocking failed"); exit(EXIT_FAILURE);}
 #define RD_LOCK(X)
 #define RW_LOCK(X)
-#define RW_UNLOCK(X)
+#define RW_UNLOCK(X) 
 
 #elif RWLOCK
+#define MUTEX_LOCK(X)
+#define MUTEX_UNLOCK(X)
+#define RWLOCK_INIT(X) pthread_rwlock_init(X, NULL)
 #define RW_LOCK(X) if(pthread_rwlock_wrlock(X) != 0) {fprintf(stderr, "Error: locking failed"); exit(EXIT_FAILURE);}
 #define RD_LOCK(X) if(pthread_rwlock_rdlock(X) != 0) {fprintf(stderr, "Error: locking failed"); exit(EXIT_FAILURE);}
 #define RW_UNLOCK(X) if(pthread_rwlock_unlock(X) != 0) {fprintf(stderr, "Error: unlocking failed"); exit(EXIT_FAILURE);}
-#define MUTEX_LOCK(X)
-#define MUTEX_UNLOCK(X)
 
 #else
 #define MUTEX_LOCK(X)
@@ -28,7 +31,6 @@
 #define RD_LOCK(X)
 #define RW_LOCK(X)
 #define RW_UNLOCK(X)
-
 #endif
 
 #define MAX_COMMANDS 150000
@@ -197,11 +199,18 @@ FILE* openFile(const char *ficheiro, const char *modo) {
 }
 
 void create_locks() {
-    if(pthread_mutex_init(&lockM, NULL) != 0 || pthread_mutex_init(&lockFS, NULL) != 0 ||
-    pthread_rwlock_init(&rwlockM, NULL) != 0 || pthread_rwlock_init(&rwlockFS, NULL) != 0) {
+    #ifdef MUTEX
+    if(pthread_mutex_init(&lockM, NULL) != 0 || pthread_mutex_init(&lockFS, NULL) != 0){
         fprintf(stderr, "Error: lock creation failed");
         exit(EXIT_FAILURE);
     }
+
+    #elif RWLOCK
+    if(pthread_rwlock_init(&rwlockM, NULL) != 0 || pthread_rwlock_init(&rwlockFS, NULL) != 0) {
+        fprintf(stderr, "Error: lock creation failed");
+        exit(EXIT_FAILURE);
+    }
+    #endif
 }
 
 int main(int argc, char *argv[]) {
