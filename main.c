@@ -3,7 +3,7 @@
 #include <getopt.h>
 #include <string.h>
 #include <ctype.h>
-#include <time.h>
+#include <sys/time.h>
 #include <pthread.h>
 #include <unistd.h>
 #include "fs.h"
@@ -214,7 +214,7 @@ void create_locks() {
 }
 
 int main(int argc, char *argv[]) {
-    clock_t start;
+    struct timeval start, end;
     double time;
     FILE *fpI = openFile(argv[1], "r"); 
     FILE *fpO = openFile(argv[2], "w");
@@ -230,7 +230,7 @@ int main(int argc, char *argv[]) {
 
     create_locks();
 
-    start = clock();
+    gettimeofday(&start, NULL);
 
     for(; i < numberThreads; i++) {
         pthread_create(&threads[i], NULL, *applyCommands, NULL);
@@ -240,15 +240,15 @@ int main(int argc, char *argv[]) {
         pthread_join(threads[i], NULL);
     }
 
-    start = clock() - start;
-    time = (double) start / CLOCKS_PER_SEC;
+    gettimeofday(&end, NULL);
+    time = (double) (end.tv_usec - start.tv_usec)/1000000;
     printf("TecnicoFS completed in %0.4f seconds.\n", time);
     
     print_tecnicofs_tree(fpO, fs);
 
     free_tecnicofs(fs);
-
     free(threads);
+
     exit(EXIT_SUCCESS);
 }
 
