@@ -1,3 +1,8 @@
+/*Afonso Carvalho    ist193681
+  João Gundersen     ist192494
+  Grupo 15
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <getopt.h>
@@ -10,14 +15,18 @@
 
 
 #ifdef MUTEX
+
+//Makefile replaces the variables with the corresponding code, creating an .exe with mutexs.
 #define MUTEX_INIT(X) pthread_mutex_init(X, NULL)
 #define MUTEX_LOCK(X) if(pthread_mutex_lock(X) != 0) {fprintf(stderr, "Error: locking failed"); exit(EXIT_FAILURE);}
 #define MUTEX_UNLOCK(X) if(pthread_mutex_unlock(X) != 0) {fprintf(stderr, "Error: unlocking failed"); exit(EXIT_FAILURE);}
 #define RD_LOCK(X)
 #define RW_LOCK(X)
-#define RW_UNLOCK(X) 
+#define RW_UNLOCK(X)
 
 #elif RWLOCK
+
+//Makefile replaces the variables with the corresponding code, creating an .exe with read_write_locks.
 #define MUTEX_LOCK(X)
 #define MUTEX_UNLOCK(X)
 #define RWLOCK_INIT(X) pthread_rwlock_init(X, NULL)
@@ -26,6 +35,8 @@
 #define RW_UNLOCK(X) if(pthread_rwlock_unlock(X) != 0) {fprintf(stderr, "Error: unlocking failed"); exit(EXIT_FAILURE);}
 
 #else
+
+//Makefile replaces the variables with the corresponding code, creating an .exe without sync.
 #define MUTEX_LOCK(X)
 #define MUTEX_UNLOCK(X)
 #define RD_LOCK(X)
@@ -36,12 +47,15 @@
 #define MAX_COMMANDS 150000
 #define MAX_INPUT_SIZE 100
 
+//Will contain the number of threads.
+int numberThreads;
 
-int numberThreads = 0;
 pthread_mutex_t lockM;
 pthread_mutex_t lockFS;
 pthread_rwlock_t rwlockM;
 pthread_rwlock_t rwlockFS;
+
+//Init of the pointer that'll point to the threads.
 pthread_t *threads = NULL;
 
 tecnicofs *fs;
@@ -72,7 +86,7 @@ int insertCommand(char* data) {
 char* removeCommand() {
     if((numberCommands > 0)) {
         numberCommands--;
-        return inputCommands[headQueue++];  
+        return inputCommands[headQueue++];
     }
     return NULL;
 }
@@ -120,7 +134,7 @@ void* applyCommands() {
         RW_LOCK(&rwlockM);
 
         const char* command = removeCommand();
-        
+
         if (command == NULL) {
             MUTEX_UNLOCK(&lockM);
             RW_UNLOCK(&rwlockM);
@@ -132,6 +146,7 @@ void* applyCommands() {
         int numTokens = sscanf(command, "%c %s", &token, name);
         int iNumber;
 
+        //If the command is 'c', the iNumber is saved in order to prevent mixing up.
         if(token == 'c') iNumber = obtainNewInumber(fs);
 
         MUTEX_UNLOCK(&lockM);
@@ -143,9 +158,9 @@ void* applyCommands() {
         }
 
         int searchResult;
-        
+
         switch (token) {
-            case 'c':   
+            case 'c':
                 MUTEX_LOCK(&lockFS);
                 RW_LOCK(&rwlockFS);
 
@@ -198,6 +213,7 @@ FILE* openFile(const char *ficheiro, const char *modo) {
     return fp;
 }
 
+//If the creation of locks is unsuccessful, will exit the program.
 void create_locks() {
     #ifdef MUTEX
     if(pthread_mutex_init(&lockM, NULL) != 0 || pthread_mutex_init(&lockFS, NULL) != 0){
@@ -214,9 +230,12 @@ void create_locks() {
 }
 
 int main(int argc, char *argv[]) {
+
+    //Creation of the time variables.
     struct timeval start, end;
     double time;
-    FILE *fpI = openFile(argv[1], "r"); 
+
+    FILE *fpI = openFile(argv[1], "r");
     FILE *fpO = openFile(argv[2], "w");
     int i = 0;
 
@@ -230,6 +249,7 @@ int main(int argc, char *argv[]) {
 
     create_locks();
 
+    //Will save the current time in 'start'.
     gettimeofday(&start, NULL);
 
     for(; i < numberThreads; i++) {
@@ -240,10 +260,13 @@ int main(int argc, char *argv[]) {
         pthread_join(threads[i], NULL);
     }
 
+    //Will save the end time of the the threads' execution.
     gettimeofday(&end, NULL);
+
+    //Saves the time of the execution of the program.
     time = (double) (end.tv_usec - start.tv_usec)/1000000;
     printf("TecnicoFS completed in %0.4f seconds.\n", time);
-    
+
     print_tecnicofs_tree(fpO, fs);
 
     free_tecnicofs(fs);
@@ -251,4 +274,3 @@ int main(int argc, char *argv[]) {
 
     exit(EXIT_SUCCESS);
 }
-
