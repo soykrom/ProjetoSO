@@ -9,17 +9,17 @@ LDFLAGS=-lm -pthread
 
 # A phony target is one that is not really the name of a file
 # https://www.gnu.org/software/make/manual/html_node/Phony-Targets.html
-.PHONY: all clean run
+ .PHONY: all clean run
 
 all: tecnicofs-mutex tecnicofs-rwlock tecnicofs-nosync
 
-tecnicofs-mutex: lib/bst.o fs.o main-mutex.o
+tecnicofs-mutex: lib/bst.o fs.o main-mutex.o 
 	$(LD) $(CFLAGS) $(LDFLAGS) -o tecnicofs-mutex lib/bst.o fs.o main-mutex.o
 
-tecnicofs-rwlock: lib/bst.o fs.o main-rwlock.o
+tecnicofs-rwlock: lib/bst.o fs.o main-rwlock.o 
 	$(LD) $(CFLAGS) $(LDFLAGS) -o tecnicofs-rwlock lib/bst.o fs.o main-rwlock.o
 
-tecnicofs-nosync: lib/bst.o fs.o main-nosync.o
+tecnicofs-nosync: lib/bst.o fs.o main-nosync.o 
 	$(LD) $(CFLAGS) $(LDFLAGS) -o tecnicofs-nosync lib/bst.o fs.o main-nosync.o
 
 lib/bst.o: lib/bst.c lib/bst.h
