@@ -5,6 +5,7 @@
 typedef struct tecnicofs {
     node *bstRoot;
     int nextINumber;
+    // int nBucket; - indica a posição na hash
 } tecnicofs;
 
 int obtainNewInumber(tecnicofs *fs);

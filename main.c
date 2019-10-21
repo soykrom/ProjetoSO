@@ -17,31 +17,41 @@
 #ifdef MUTEX
 
 //Makefile replaces the variables with the corresponding code, creating an .exe with mutexs.
-#define MUTEX_INIT(X) pthread_mutex_init(X, NULL)
-#define MUTEX_LOCK(X) if(pthread_mutex_lock(X) != 0) {fprintf(stderr, "Error: locking failed"); exit(EXIT_FAILURE);}
-#define MUTEX_UNLOCK(X) if(pthread_mutex_unlock(X) != 0) {fprintf(stderr, "Error: unlocking failed"); exit(EXIT_FAILURE);}
+#define MUTEX_INIT(X) if(pthread_mutex_init(X, NULL)) exit(EXIT_FAILURE);
+#define MUTEX_LOCK(X) if(pthread_mutex_lock(X)) exit(EXIT_FAILURE);
+#define MUTEX_UNLOCK(X) if(pthread_mutex_unlock(X)) exit(EXIT_FAILURE);
+#define MUTEX_DESTROY(X) if(pthread_mutex_destroy(X)) exit(EXIT_FAILURE);
+#define RWLOCK_INIT(X)
 #define RD_LOCK(X)
 #define RW_LOCK(X)
 #define RW_UNLOCK(X)
+#define RW_DESTROY(X)
 
 #elif RWLOCK
 
 //Makefile replaces the variables with the corresponding code, creating an .exe with read_write_locks.
+#define MUTEX_INIT(X)
 #define MUTEX_LOCK(X)
 #define MUTEX_UNLOCK(X)
-#define RWLOCK_INIT(X) pthread_rwlock_init(X, NULL)
-#define RW_LOCK(X) if(pthread_rwlock_wrlock(X) != 0) {fprintf(stderr, "Error: locking failed"); exit(EXIT_FAILURE);}
-#define RD_LOCK(X) if(pthread_rwlock_rdlock(X) != 0) {fprintf(stderr, "Error: locking failed"); exit(EXIT_FAILURE);}
-#define RW_UNLOCK(X) if(pthread_rwlock_unlock(X) != 0) {fprintf(stderr, "Error: unlocking failed"); exit(EXIT_FAILURE);}
+#define MUTEX_DESTROY(X)
+#define RWLOCK_INIT(X) if(pthread_rwlock_init(X, NULL)) exit(EXIT_FAILURE);
+#define RW_LOCK(X) if(pthread_rwlock_wrlock(X)) exit(EXIT_FAILURE);
+#define RD_LOCK(X) if(pthread_rwlock_rdlock(X)) exit(EXIT_FAILURE);
+#define RW_UNLOCK(X) if(pthread_rwlock_unlock(X)) exit(EXIT_FAILURE);
+#define RW_DESTROY(X) if(pthread_rwlock_destroy(X)) exit(EXIT_FAILURE);
 
 #else
 
 //Makefile replaces the variables with the corresponding code, creating an .exe without sync.
+#define MUTEX_INIT(X)
 #define MUTEX_LOCK(X)
 #define MUTEX_UNLOCK(X)
+#define MUTEX_DESTROY(X)
+#define RWLOCK_INIT(X)
 #define RD_LOCK(X)
 #define RW_LOCK(X)
 #define RW_UNLOCK(X)
+#define RW_DESTROY(X)
 #endif
 
 #define MAX_COMMANDS 150000
@@ -190,6 +200,13 @@ void* applyCommands() {
                 MUTEX_UNLOCK(&lockFS);
                 RW_UNLOCK(&rwlockFS);
                 break;
+            case 'r':
+                MUTEX_LOCK(&lockFS);
+                RW_LOCK(&rwlockFS);
+                /* DoRename */
+                MUTEX_UNLOCK(&lockFS);
+                RW_UNLOCK(&rwlockFS);
+                break;
             default: { /* error */
                 fprintf(stderr, "Error: command to apply\n");
                 exit(EXIT_FAILURE);
@@ -215,19 +232,22 @@ FILE* openFile(const char *ficheiro, const char *modo) {
 
 //If the creation of locks is unsuccessful, will exit the program.
 void create_locks() {
-    #ifdef MUTEX
-    if(pthread_mutex_init(&lockM, NULL) != 0 || pthread_mutex_init(&lockFS, NULL) != 0){
-        fprintf(stderr, "Error: lock creation failed");
-        exit(EXIT_FAILURE);
-    }
+    MUTEX_INIT(&lockM);
+    MUTEX_INIT(&lockFS);
 
-    #elif RWLOCK
-    if(pthread_rwlock_init(&rwlockM, NULL) != 0 || pthread_rwlock_init(&rwlockFS, NULL) != 0) {
-        fprintf(stderr, "Error: lock creation failed");
-        exit(EXIT_FAILURE);
-    }
-    #endif
+    RWLOCK_INIT(&rwlockM);
+    RWLOCK_INIT(&rwlockFS);
 }
+
+//If the destruction of locks is unsuccessful, will exit the program.
+void destroy_locks() {
+    MUTEX_DESTROY(&lockM);
+    MUTEX_DESTROY(&lockFS);
+
+    RW_DESTROY(&rwlockM);
+    RW_DESTROY(&rwlockFS);
+}
+
 
 int main(int argc, char *argv[]) {
 
@@ -252,13 +272,11 @@ int main(int argc, char *argv[]) {
     //Will save the current time in 'start'.
     gettimeofday(&start, NULL);
 
-    for(; i < numberThreads; i++) {
-        pthread_create(&threads[i], NULL, *applyCommands, NULL);
-    }
+    for(; i < numberThreads; i++)
+        if(pthread_create(&threads[i], NULL, *applyCommands, NULL)) exit(EXIT_FAILURE);
 
-    for(i = 0; i < numberThreads; i++) {
-        pthread_join(threads[i], NULL);
-    }
+    for(i = 0; i < numberThreads; i++) 
+        if(pthread_join(threads[i], NULL)) exit(EXIT_FAILURE);
 
     //Will save the end time of the the threads' execution.
     gettimeofday(&end, NULL);
@@ -271,6 +289,8 @@ int main(int argc, char *argv[]) {
 
     free_tecnicofs(fs);
     free(threads);
+    destroy_locks();
 
+    
     exit(EXIT_SUCCESS);
 }
