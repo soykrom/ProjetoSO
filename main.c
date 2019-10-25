@@ -16,19 +16,6 @@
 
 #ifdef MUTEX
 
-<<<<<<< HEAD
-/*Makefile replaces the variables with the corresponding code, creating an .exe with mutexs.*/
-#define MUTEX_INIT(X) pthread_mutex_init(X, NULL)
-#define MUTEX_LOCK(X) if(pthread_mutex_lock(X) != 0) {fprintf(stderr, "Error: locking failed"); exit(EXIT_FAILURE);}
-#define MUTEX_UNLOCK(X) if(pthread_mutex_unlock(X) != 0) {fprintf(stderr, "Error: unlocking failed"); exit(EXIT_FAILURE);}
-#define RD_LOCK(X)
-#define RW_LOCK(X)
-#define RW_UNLOCK(X)
-
-#elif RWLOCK
-
-/*Makefile replaces the variables with the corresponding code, creating an .exe with read_write_locks.*/
-=======
 //Makefile replaces the variables with the corresponding code, creating an .exe with mutexs.
 #define MUTEX_INIT(X) if(pthread_mutex_init(X, NULL)) exit(EXIT_FAILURE);
 #define MUTEX_LOCK(X) if(pthread_mutex_lock(X)) exit(EXIT_FAILURE);
@@ -44,7 +31,6 @@
 
 //Makefile replaces the variables with the corresponding code, creating an .exe with read_write_locks.
 #define MUTEX_INIT(X)
->>>>>>> 649ca2acaf486e9abef8d79c836bc6f263804a18
 #define MUTEX_LOCK(X)
 #define MUTEX_UNLOCK(X)
 #define MUTEX_DESTROY(X)
@@ -56,12 +42,8 @@
 
 #else
 
-<<<<<<< HEAD
-/*Makefile replaces the variables with the corresponding code, creating an .exe without sync.*/
-=======
 //Makefile replaces the variables with the corresponding code, creating an .exe without sync.
 #define MUTEX_INIT(X)
->>>>>>> 649ca2acaf486e9abef8d79c836bc6f263804a18
 #define MUTEX_LOCK(X)
 #define MUTEX_UNLOCK(X)
 #define MUTEX_DESTROY(X)
@@ -75,11 +57,7 @@
 #define MAX_COMMANDS 150000
 #define MAX_INPUT_SIZE 100
 
-<<<<<<< HEAD
-/*Will contain the number of threads.*/
-=======
 //Will contain the number of threads.
->>>>>>> 649ca2acaf486e9abef8d79c836bc6f263804a18
 int numberThreads;
 
 pthread_mutex_t lockM;
@@ -87,11 +65,7 @@ pthread_mutex_t lockFS;
 pthread_rwlock_t rwlockM;
 pthread_rwlock_t rwlockFS;
 
-<<<<<<< HEAD
-/*Init of the pointer that'll point to the threads.*/
-=======
 //Init of the pointer that'll point to the threads.
->>>>>>> 649ca2acaf486e9abef8d79c836bc6f263804a18
 pthread_t *threads = NULL;
 
 tecnicofs *fs;
@@ -182,11 +156,7 @@ void* applyCommands() {
         int numTokens = sscanf(command, "%c %s", &token, name);
         int iNumber;
 
-<<<<<<< HEAD
-        /*If the command is 'c', the iNumber is saved in order to prevent mixing up.*/
-=======
         //If the command is 'c', the iNumber is saved in order to prevent mixing up.
->>>>>>> 649ca2acaf486e9abef8d79c836bc6f263804a18
         if(token == 'c') iNumber = obtainNewInumber(fs);
 
         MUTEX_UNLOCK(&lockM);
@@ -260,11 +230,7 @@ FILE* openFile(const char *ficheiro, const char *modo) {
     return fp;
 }
 
-<<<<<<< HEAD
-/*If the creation of locks is unsuccessful, will exit the program.*/
-=======
 //If the creation of locks is unsuccessful, will exit the program.
->>>>>>> 649ca2acaf486e9abef8d79c836bc6f263804a18
 void create_locks() {
     MUTEX_INIT(&lockM);
     MUTEX_INIT(&lockFS);
@@ -285,52 +251,40 @@ void destroy_locks() {
 
 int main(int argc, char *argv[]) {
 
-<<<<<<< HEAD
-    /*Creation of the time variables.*/
-=======
     //Creation of the time variables.
->>>>>>> 649ca2acaf486e9abef8d79c836bc6f263804a18
     struct timeval start, end;
     double time;
+    int nBuckets;
 
     FILE *fpI = openFile(argv[1], "r");
     FILE *fpO = openFile(argv[2], "w");
     int i = 0;
 
     numberThreads =  atoi(argv[3]);
+    nBuckets = atoi(argv[4]);
     threads = (pthread_t*) malloc(sizeof(pthread_t*) * numberThreads);
 
+    //Isto nao e' suposto vir primeiro na main?
     parseArgs(argc, argv);
 
-    fs = new_tecnicofs();
+    fs = new_tecnicofs(nBuckets);
     processInput(fpI);
 
     create_locks();
 
-<<<<<<< HEAD
-    /*Will save the current time in 'start'.*/
-=======
     //Will save the current time in 'start'.
->>>>>>> 649ca2acaf486e9abef8d79c836bc6f263804a18
     gettimeofday(&start, NULL);
 
     for(; i < numberThreads; i++)
         if(pthread_create(&threads[i], NULL, *applyCommands, NULL)) exit(EXIT_FAILURE);
 
-    for(i = 0; i < numberThreads; i++) 
+    for(i = 0; i < numberThreads; i++)
         if(pthread_join(threads[i], NULL)) exit(EXIT_FAILURE);
 
-<<<<<<< HEAD
-    /*Will save the end time of the the threads' execution.*/
-    gettimeofday(&end, NULL);
-
-    /*Saves the time of the execution of the program.*/
-=======
     //Will save the end time of the the threads' execution.
     gettimeofday(&end, NULL);
 
     //Saves the time of the execution of the program.
->>>>>>> 649ca2acaf486e9abef8d79c836bc6f263804a18
     time = (double) (end.tv_usec - start.tv_usec)/1000000;
     printf("TecnicoFS completed in %0.4f seconds.\n", time);
 
@@ -340,10 +294,6 @@ int main(int argc, char *argv[]) {
     free(threads);
     destroy_locks();
 
-    
+
     exit(EXIT_SUCCESS);
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 649ca2acaf486e9abef8d79c836bc6f263804a18
