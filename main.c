@@ -260,8 +260,12 @@ int main(int argc, char *argv[]) {
     FILE *fpO = openFile(argv[2], "w");
     int i = 0;
 
+    //Saves the number of threads.
     numberThreads =  atoi(argv[3]);
+
+    //Saves the number of buckets.
     nBuckets = atoi(argv[4]);
+
     threads = (pthread_t*) malloc(sizeof(pthread_t*) * numberThreads);
 
     //Isto nao e' suposto vir primeiro na main?

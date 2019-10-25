@@ -1,16 +1,17 @@
 #ifndef FS_H
 #define FS_H
 #include "lib/bst.h"
+#include "lib/hash.h"
 
 typedef struct tecnicofs {
-    node *bstRoot;
+    hash_node* buckets;
+    int nBuckets;
     int nextINumber;
-    // int nBucket; - indica a posição na hash
 } tecnicofs;
 
 int obtainNewInumber(tecnicofs *fs);
 
-tecnicofs *new_tecnicofs();
+tecnicofs *new_tecnicofs(int n_buckets);
 void free_tecnicofs(tecnicofs *fs);
 
 void create(tecnicofs *fs, char* name, int inumber);
