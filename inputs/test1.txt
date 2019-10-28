@@ -6,6 +6,9 @@ c d
 c e
 c f
 c g
+d g
 c h
 l e
+r e g
+l g
 d c

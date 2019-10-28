@@ -33,7 +33,7 @@ void free_tecnicofs(tecnicofs *fs) {
 	free(fs);
 }
 
-void create(tecnicofs *fs, char* name, int inumber) {
+void create(tecnicofs *fs, char *name, int inumber) {
 	int i = hash(name, fs->nBuckets);
 
 	if(!fs->buckets[i]) fs->buckets[i] = create_node();
@@ -41,19 +41,28 @@ void create(tecnicofs *fs, char* name, int inumber) {
 	fs->buckets[i]->bstRoot = insert(fs->buckets[i]->bstRoot, name, inumber);
 }
 
-void delete(tecnicofs *fs, char* name) {
-	int i = hash(name, fs->nBuckets);
-
-	fs->buckets[i]->bstRoot = remove_item(fs->buckets[i]->bstRoot, name);
-}
-
-int lookup(tecnicofs *fs, char* name) {
+int lookup(tecnicofs *fs, char *name) {
 	int i = hash(name, fs->nBuckets);
 	node *searchNode = search(fs->buckets[i]->bstRoot, name);
 
 	if (searchNode) return searchNode->inumber;
 
 	return 0;
+}
+
+void delete(tecnicofs *fs, char *name) {
+	int i = hash(name, fs->nBuckets);
+
+	fs->buckets[i]->bstRoot = remove_item(fs->buckets[i]->bstRoot, name);
+}
+
+void change_name(tecnicofs *fs, char *oldName, char *newName) {
+	int iNumber = lookup(fs, oldName);
+
+	if(iNumber || !lookup(fs, newName)) {
+		delete(fs, oldName);
+		create(fs, newName, iNumber);
+	}
 }
 
 void print_tecnicofs_tree(FILE *fp, tecnicofs *fs) {

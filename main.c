@@ -50,6 +50,7 @@ int insertCommand(char* data) {
         strcpy(inputCommands[numberCommands++], data);
         return 1;
     }
+
     return 0;
 }
 
@@ -85,7 +86,11 @@ void processInput(FILE *fp) {
                 if(numTokens != 2) errorParse(fp);
 
                 if(insertCommand(line)) break;
+                return;
+            case 'r':
+                if(numTokens != 3) errorParse(fp);
 
+                if(insertCommand(line)) break;
                 return;
             case '#':
                 break;
@@ -112,8 +117,8 @@ void* applyCommands() {
         }
 
         char token;
-        char name[MAX_INPUT_SIZE];
-        int numTokens = sscanf(command, "%c %s", &token, name);
+        char name[MAX_INPUT_SIZE], newName[MAX_INPUT_SIZE];
+        int numTokens = sscanf(command, "%c %s %s", &token, name, newName);
         int iNumber;
 
         //If the command is 'c', the iNumber is saved in order to prevent mixing up.
@@ -121,8 +126,7 @@ void* applyCommands() {
 
         MUTEX_UNLOCK(&lockM);
         RW_UNLOCK(&rwlockM);
-
-        if (numTokens != 2) {
+        if ((numTokens != 2 && strcmp(&token, "r")) && (!strcmp(&token, "r") && numTokens != 3)) {
             fprintf(stderr, "Error: invalid command in Queue\n");
             exit(EXIT_FAILURE);
         }
@@ -163,7 +167,9 @@ void* applyCommands() {
             case 'r':
                 MUTEX_LOCK(&lockFS);
                 RW_LOCK(&rwlockFS);
-                /* DoRename */
+
+                change_name(fs, name, newName);
+
                 MUTEX_UNLOCK(&lockFS);
                 RW_UNLOCK(&rwlockFS);
                 break;
