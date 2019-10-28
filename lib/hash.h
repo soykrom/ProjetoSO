@@ -1,16 +1,16 @@
 #ifndef HASH_H
-#define HASH_H 1
+#define HASH_H 
 #include "bst.h"
 #include <pthread.h>
 
-typedef struct hash_node{
+typedef struct hash_node {
   node *bstRoot;
   pthread_mutex_t bstlock;
-}*hash_node;
+} *hash_node;
 
 int hash(char* name, int n_buckets);
-hash_node *create_hashtable(int n_buckets);
-void delete_hash(hash_node* buckets, int n_buckets);
-
+hash_node create_node();
+hash_node* create_hashtable(int n_buckets);
+void delete_hash(hash_node *buckets, int n_buckets);
 
 #endif

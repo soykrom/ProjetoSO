@@ -22,6 +22,7 @@ node* new_node(char *key, int inumber) {
     p->inumber = inumber;
     p->left  = NULL;
     p->right = NULL;
+
     return p;
 }
 
@@ -124,4 +125,5 @@ void print_tree_2(FILE *fp, node *p, int l) {
 void print_tree(FILE *fp, node *p) {
   fprintf(fp, "\n");
   print_tree_2(fp, p, 0);
+  fprintf(fp, "\n");
 }
