@@ -1,11 +1,8 @@
 
-    b
-  d
+  b
+    d
       f
-    h
-
+        h
 
   a
-      c
-    g
-
+    e

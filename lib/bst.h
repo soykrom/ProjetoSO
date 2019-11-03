@@ -15,6 +15,7 @@ typedef struct node {
 
 void insertDelay(int cycles);
 
+node* new_node(char *key, int inumber);
 node* search(node *p, char* key);
 node* insert(node *p, char* key, int inumber);
 node* find_min(node *p);

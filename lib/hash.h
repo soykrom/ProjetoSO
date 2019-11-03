@@ -9,8 +9,5 @@ typedef struct hash_node {
 } *hash_node;
 
 int hash(char* name, int n_buckets);
-hash_node create_node();
-hash_node* create_hashtable(int n_buckets);
-void delete_hash(hash_node *buckets, int n_buckets);
 
 #endif

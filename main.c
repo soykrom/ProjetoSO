@@ -17,13 +17,11 @@
 #define MAX_COMMANDS 150000
 #define MAX_INPUT_SIZE 100
 
+pthread_mutex_t mLock;
+pthread_rwlock_t rwLock;
+
 //Will contain the number of threads.
 int numberThreads;
-
-pthread_mutex_t lockM;
-pthread_mutex_t lockFS;
-pthread_rwlock_t rwlockM;
-pthread_rwlock_t rwlockFS;
 
 //Init of the pointer that'll point to the threads.
 pthread_t *threads = NULL;
@@ -104,83 +102,94 @@ void processInput(FILE *fp) {
 }
 
 void* applyCommands() {
-    while(numberCommands > 0) {
-        MUTEX_LOCK(&lockM);
-        RW_LOCK(&rwlockM);
+    while(1) {
+        MUTEX_LOCK(&mLock);
+        RW_LOCK(&rwLock);
 
-        const char* command = removeCommand();
+        if(numberCommands > 0) {
+            const char* command = removeCommand();
 
-        if (command == NULL) {
-            MUTEX_UNLOCK(&lockM);
-            RW_UNLOCK(&rwlockM);
-            return NULL;
-        }
+            if (command == NULL) {
+                MUTEX_UNLOCK(&mLock);
+                RW_UNLOCK(&rwLock);
+                return NULL;
+            }
 
-        char token;
-        char name[MAX_INPUT_SIZE], newName[MAX_INPUT_SIZE];
-        int numTokens = sscanf(command, "%c %s %s", &token, name, newName);
-        int iNumber;
+            char token;
+            char name[MAX_INPUT_SIZE], newName[MAX_INPUT_SIZE];
+            int numTokens = sscanf(command, "%c %s %s", &token, name, newName);
+            int iNumber;
 
-        //If the command is 'c', the iNumber is saved in order to prevent mixing up.
-        if(token == 'c') iNumber = obtainNewInumber(fs);
+            //If the command is 'c', the iNumber is saved in order to prevent mixing up.
+            if(token == 'c') iNumber = obtainNewInumber(fs);
 
-        MUTEX_UNLOCK(&lockM);
-        RW_UNLOCK(&rwlockM);
-        if ((numTokens != 2 && strcmp(&token, "r")) && (!strcmp(&token, "r") && numTokens != 3)) {
-            fprintf(stderr, "Error: invalid command in Queue\n");
-            exit(EXIT_FAILURE);
-        }
+            MUTEX_UNLOCK(&mLock);
+            RW_UNLOCK(&rwLock);
 
-        int searchResult;
 
-        switch (token) {
-            case 'c':
-                MUTEX_LOCK(&lockFS);
-                RW_LOCK(&rwlockFS);
-
-                create(fs, name, iNumber);
-
-                MUTEX_UNLOCK(&lockFS);
-                RW_UNLOCK(&rwlockFS);
-                break;
-            case 'l':
-                MUTEX_LOCK(&lockFS);
-                RD_LOCK(&rwlockFS);
-                searchResult = lookup(fs, name);
-                if(!searchResult)
-                    printf("%s not found\n", name);
-                else
-                    printf("%s found with inumber %d\n", name, searchResult);
-
-                MUTEX_UNLOCK(&lockFS);
-                RW_UNLOCK(&rwlockFS);
-                break;
-            case 'd':
-                MUTEX_LOCK(&lockFS);
-                RW_LOCK(&rwlockFS);
-
-                delete(fs, name);
-
-                MUTEX_UNLOCK(&lockFS);
-                RW_UNLOCK(&rwlockFS);
-                break;
-            case 'r':
-                MUTEX_LOCK(&lockFS);
-                RW_LOCK(&rwlockFS);
-
-                change_name(fs, name, newName);
-
-                MUTEX_UNLOCK(&lockFS);
-                RW_UNLOCK(&rwlockFS);
-                break;
-            default: { /* error */
-                fprintf(stderr, "Error: command to apply\n");
+            if ((numTokens != 2 && strcmp(&token, "r")) && (!strcmp(&token, "r") && numTokens != 3)) {
+                fprintf(stderr, "Error: invalid command in Queue\n");
                 exit(EXIT_FAILURE);
             }
+
+            int searchResult;
+            int pos = hash(name, fs->nBuckets);
+
+            switch (token) {
+                case 'c':
+                    MUTEX_LOCK(&fs->locksM[pos])
+                    RW_LOCK(&fs->locksRW[pos]);
+
+                    create(fs, name, iNumber);
+
+                    MUTEX_UNLOCK(&fs->locksM[pos]);
+                    RW_UNLOCK(&fs->locksRW[pos]);
+                    break;
+                case 'l':
+                    MUTEX_LOCK(&fs->locksM[pos]);
+                    RD_LOCK(&fs->locksRW[pos]);
+
+                    searchResult = lookup(fs, name);
+                    if(!searchResult)
+                        printf("%s not found\n", name);
+                    else
+                        printf("%s found with inumber %d\n", name, searchResult);
+
+                    MUTEX_UNLOCK(&fs->locksM[pos]);
+                    RW_UNLOCK(&fs->locksRW[pos]);
+                    break;
+                case 'd':
+                    MUTEX_LOCK(&fs->locksM[pos]);
+                    RW_LOCK(&fs->locksRW[pos]);
+
+                    delete(fs, name);
+
+                    MUTEX_UNLOCK(&fs->locksM[pos]);
+                    RW_UNLOCK(&fs->locksRW[pos]);
+                    break;
+                case 'r':
+                    printf("%d\n", pos);
+                    /*
+                    MUTEX_LOCK(&lockFS);
+                    RW_LOCK(&rwlockFS);
+
+                    change_name(fs, name, newName);
+
+                    MUTEX_UNLOCK(&lockFS);
+                    RW_UNLOCK(&rwlockFS);
+                    */
+                    break;
+                default: { /* error */
+                    fprintf(stderr, "Error: command to apply\n");
+                    exit(EXIT_FAILURE);
+                }
+            }
+        } else {
+            MUTEX_UNLOCK(&mLock);
+            RW_UNLOCK(&rwLock);
+            return NULL;
         }
     }
-
-    return NULL;
 }
 
 FILE* openFile(const char *ficheiro, const char *modo) {
@@ -226,8 +235,6 @@ int main(int argc, char *argv[]) {
     fs = new_tecnicofs(nBuckets);
     processInput(fpI);
 
-    create_locks();
-
     //Will save the current time in 'start'.
     gettimeofday(&start, NULL);
 
@@ -246,10 +253,9 @@ int main(int argc, char *argv[]) {
 
     print_tecnicofs_tree(fpO, fs);
 
+    destroy_locks(fs);
     free_tecnicofs(fs);
     free(threads);
-    destroy_locks();
-
 
     exit(EXIT_SUCCESS);
 }

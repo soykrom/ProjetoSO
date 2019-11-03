@@ -1,6 +1,7 @@
 #ifndef LOCKS_H
 #define LOCKS_H
 #include "lib/bst.h"
+#include "fs.h"
 
 #ifdef MUTEX
 
@@ -43,9 +44,8 @@
 #endif
 
 
+void create_locks(tecnicofs *fs);
 
-void create_locks();
-
-void destroy_locks();
+void destroy_locks(tecnicofs *fs);
 
 #endif

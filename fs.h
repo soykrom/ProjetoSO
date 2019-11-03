@@ -4,9 +4,11 @@
 #include "lib/hash.h"
 
 typedef struct tecnicofs {
-    hash_node* buckets;
-    int nBuckets;
+    node **bstRoot;
+    pthread_mutex_t *locksM;
+    pthread_rwlock_t *locksRW;
     int nextINumber;
+    int nBuckets;
 } tecnicofs;
 
 int obtainNewInumber(tecnicofs *fs);

@@ -49,11 +49,11 @@ clean:
 	rm -f lib/*.o *.o tecnicofs-mutex tecnicofs-rwlock tecnicofs-nosync
 
 run: all
-	./tecnicofs-mutex inputs/test1.txt outputs/mutex/test1.txt 10 2
-	./tecnicofs-rwlock inputs/test1.txt outputs/rwlock/test1.txt 10 2
-	./tecnicofs-nosync inputs/test1.txt outputs/nosync/test1.txt 1 1
+	./tecnicofs-mutex inputs/test3.txt outputs/mutex/test3.txt 10 5
+	./tecnicofs-rwlock inputs/test3.txt outputs/rwlock/test3.txt 10 5
+	./tecnicofs-nosync inputs/test3.txt outputs/nosync/test3.txt 1 1
 
 valgrind: all
-	valgrind --leak-check=full ./tecnicofs-mutex inputs/test1.txt outputs/mutex/test1.txt 10 2
-	valgrind --leak-check=full ./tecnicofs-rwlock inputs/test1.txt outputs/rwlock/test1.txt 10 2
+	valgrind --leak-check=full ./tecnicofs-mutex inputs/test1.txt outputs/mutex/test1.txt 10 5
+	valgrind --leak-check=full ./tecnicofs-rwlock inputs/test1.txt outputs/rwlock/test1.txt 10 5
 	valgrind --leak-check=full ./tecnicofs-nosync inputs/test1.txt outputs/nosync/test1.txt 1 1

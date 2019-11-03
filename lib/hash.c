@@ -8,30 +8,6 @@
 int hash(char* name, int n_buckets) {
 	if (!name)
 		return -1;
+		
 	return (int) name[0] % n_buckets;
-}
-
-hash_node create_node() {
-	hash_node new = (hash_node) malloc(sizeof(hash_node));
-
-	return new;
-}
-hash_node* create_hashtable(int n_buckets){
-	int i;
-	hash_node *buckets;
-
-	buckets = (hash_node*) malloc(n_buckets * sizeof(hash_node));
-
-	for(i = 0; i < n_buckets; i++) buckets[i] = NULL;
-
-	return buckets;
-}
-
-void delete_hash(hash_node* buckets, int n_buckets){
-	int i;
-
-	for(i = 0; i < n_buckets; i++){
-		free(buckets[i]);
-	}
-	free(buckets);
 }

@@ -1,4 +1,5 @@
 #include "fs.h"
+#include "locks.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -16,34 +17,41 @@ tecnicofs* new_tecnicofs(int n_buckets) {
 		exit(EXIT_FAILURE);
 	}
 
-	hash_node *buckets = create_hashtable(n_buckets);
-	fs->buckets = buckets;
-	fs->nextINumber = 0;
 	fs->nBuckets = n_buckets;
+	fs->bstRoot = (node**) malloc(sizeof(node*) * fs->nBuckets);
+	if(!fs->bstRoot) {
+		perror("failed to allocate fs->bstRoot");
+		exit(EXIT_FAILURE);
+	}
 
+	fs->nextINumber = 0;
+
+	create_locks(fs);
 	return fs;
 }
 
 void free_tecnicofs(tecnicofs *fs) {
 	int i;
-	for(i = 0; i < fs -> nBuckets; i++){
-		free_tree(fs -> buckets[i] -> bstRoot);
+
+	for(i = 0; i < fs->nBuckets; i++) {
+		free_tree(fs->bstRoot[i]);
 	}
-	delete_hash(fs -> buckets, fs -> nBuckets);
+	
+	free(fs->bstRoot);
 	free(fs);
 }
 
 void create(tecnicofs *fs, char *name, int inumber) {
 	int i = hash(name, fs->nBuckets);
 
-	if(!fs->buckets[i]) fs->buckets[i] = create_node();
+	if(!fs->bstRoot[i]) fs->bstRoot[i] = new_node(name, inumber);
 
-	fs->buckets[i]->bstRoot = insert(fs->buckets[i]->bstRoot, name, inumber);
+	fs->bstRoot[i] = insert(fs->bstRoot[i], name, inumber);
 }
 
 int lookup(tecnicofs *fs, char *name) {
 	int i = hash(name, fs->nBuckets);
-	node *searchNode = search(fs->buckets[i]->bstRoot, name);
+	node *searchNode = search(fs->bstRoot[i], name);
 
 	if (searchNode) return searchNode->inumber;
 
@@ -53,9 +61,10 @@ int lookup(tecnicofs *fs, char *name) {
 void delete(tecnicofs *fs, char *name) {
 	int i = hash(name, fs->nBuckets);
 
-	fs->buckets[i]->bstRoot = remove_item(fs->buckets[i]->bstRoot, name);
+	fs->bstRoot[i] = remove_item(fs->bstRoot[i], name);
 }
 
+/*
 void change_name(tecnicofs *fs, char *oldName, char *newName) {
 	int iNumber = lookup(fs, oldName);
 
@@ -64,13 +73,14 @@ void change_name(tecnicofs *fs, char *oldName, char *newName) {
 		create(fs, newName, iNumber);
 	}
 }
+*/
 
 void print_tecnicofs_tree(FILE *fp, tecnicofs *fs) {
 	int i;
 	for(i = 0; i < fs -> nBuckets; i++) {
-		if(!fs->buckets[i]) continue;
+		if(!fs->bstRoot[i]) continue;
 
-		print_tree(fp, fs->buckets[i]->bstRoot);
+		print_tree(fp, fs->bstRoot[i]);
 	}
 
 	fclose(fp);
