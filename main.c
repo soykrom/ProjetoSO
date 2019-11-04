@@ -137,7 +137,7 @@ void* applyCommands() {
 
             switch (token) {
                 case 'c':
-                    MUTEX_LOCK(&fs->locksM[pos])
+                    MUTEX_LOCK(&fs->locksM[pos]);
                     RW_LOCK(&fs->locksRW[pos]);
 
                     create(fs, name, iNumber);

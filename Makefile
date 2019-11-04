@@ -46,7 +46,7 @@ main-nosync.o: main.c lib/bst.h lib/hash.h locks.h fs.h
 
 clean:
 	@echo Cleaning...
-	rm -f lib/*.o *.o tecnicofs-mutex tecnicofs-rwlock tecnicofs-nosync
+	rm -rf lib/*.o *.o tecnicofs-mutex tecnicofs-rwlock tecnicofs-nosync outputs/*.txt
 
 run: all
 	./tecnicofs-mutex inputs/test3.txt outputs/mutex/test3.txt 10 5

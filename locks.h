@@ -3,8 +3,14 @@
 #include "lib/bst.h"
 #include "fs.h"
 
-#ifdef MUTEX
 
+/* ALTERAR MACROS PARA NAO TER QUE USAR AS DUAS. RECEBE A POSICAO DA HASH E DA LOCK DEPENDENDO SE E MUTEX OU RWLOCK 
+
+Problemas: 1 - Distinguir entre rdlock e rwlock
+            Solução: Apenas no comamdo l usar o rdlock diretamente, e não chamar a função*/
+
+#ifdef MUTEX
+    
 //Makefile replaces the variables with the corresponding code, creating an .exe with mutexs.
 #define MUTEX_INIT(X) if(pthread_mutex_init(X, NULL)) exit(EXIT_FAILURE);
 #define MUTEX_LOCK(X) if(pthread_mutex_lock(X)) exit(EXIT_FAILURE);
@@ -45,6 +51,7 @@
 
 
 void create_locks(tecnicofs *fs);
+
 
 void destroy_locks(tecnicofs *fs);
 
