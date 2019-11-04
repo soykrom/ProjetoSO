@@ -46,14 +46,14 @@ main-nosync.o: main.c lib/bst.h lib/hash.h locks.h fs.h
 
 clean:
 	@echo Cleaning...
-	rm -rf lib/*.o *.o tecnicofs-mutex tecnicofs-rwlock tecnicofs-nosync outputs/*.txt
+	rm -f lib/*.o *.o tecnicofs-mutex tecnicofs-rwlock tecnicofs-nosync outputs/*.txt
 
 run: all
-	./tecnicofs-mutex inputs/test3.txt outputs/mutex/test3.txt 10 5
-	./tecnicofs-rwlock inputs/test3.txt outputs/rwlock/test3.txt 10 5
-	./tecnicofs-nosync inputs/test3.txt outputs/nosync/test3.txt 1 1
+	./tecnicofs-mutex inputs/test3.txt outputs/test3-mutex.txt 10 5
+	./tecnicofs-rwlock inputs/test3.txt outputs/test3-rwlock.txt 10 5
+	./tecnicofs-nosync inputs/test3.txt outputs/test3-nosync.txt 1 1
 
 valgrind: all
-	valgrind --leak-check=full ./tecnicofs-mutex inputs/test1.txt outputs/mutex/test1.txt 10 5
-	valgrind --leak-check=full ./tecnicofs-rwlock inputs/test1.txt outputs/rwlock/test1.txt 10 5
-	valgrind --leak-check=full ./tecnicofs-nosync inputs/test1.txt outputs/nosync/test1.txt 1 1
+	valgrind --leak-check=full ./tecnicofs-mutex inputs/test1.txt outputs/test1-mutex.txt 10 4
+	valgrind --leak-check=full ./tecnicofs-rwlock inputs/test1.txt outputs/test1-rwlock.txt 10 4
+	valgrind --leak-check=full ./tecnicofs-nosync inputs/test1.txt outputs/test1-nosync.txt 1 1
