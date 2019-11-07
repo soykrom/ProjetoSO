@@ -5,56 +5,66 @@
 
 //If the creation of locks is unsuccessful, will exit the program.
 void create_locks(tecnicofs *fs) {
+    #ifdef MUTEX
     int i = 0;
 
-    MUTEX_INIT(&mLock);
+    if(pthread_mutex_init(&mLock, NULL)) exit(EXIT_FAILURE);
 
-    fs->locksM = (pthread_mutex_t*) malloc(sizeof(pthread_mutex_t) * fs->nBuckets); 
-    if(!fs->locksM) {
+    locks = (pthread_mutex_t*) malloc(sizeof(pthread_mutex_t) * fs->nBuckets); 
+    if(!locks) {
         perror("failed to allocate locks");
         exit(EXIT_FAILURE);
     }
 
     for(; i < fs->nBuckets; i++) {
-        MUTEX_INIT(&fs->locksM[i]);
+        if(pthread_mutex_init(&locks[i], NULL)) exit(EXIT_FAILURE);
     }
 
-    i = 0;
+    printf("Leaving create\n");
 
-    RWLOCK_INIT(&rwLock);
 
-    fs->locksRW = (pthread_rwlock_t*) malloc(sizeof(pthread_rwlock_t) * fs->nBuckets); 
-    if(!fs->locksRW) {
+    #elif RWLOCK
+    int i = 0;
+
+    if(pthread_rwlock_init(&mLock, NULL)) exit(EXIT_FAILURE);
+
+    locks = (pthread_rwlock_t*) malloc(sizeof(pthread_rwlock_t) * fs->nBuckets); 
+    if(!locks) {
         perror("failed to allocate locks");
         exit(EXIT_FAILURE);
     }
 
     for(; i < fs->nBuckets; i++) {
-        RWLOCK_INIT(&fs->locksRW[i]);
+        if(pthread_rwlock_init(&locks[i], NULL)) exit(EXIT_FAILURE);
     }
 
+    #endif
 }
+
 
 //If the destruction of locks is unsuccessful, will exit the program.
 void destroy_locks(tecnicofs *fs) {
+    #ifdef MUTEX
     int i = 0;
 
-    MUTEX_DESTROY(&mLock);
+    if(pthread_mutex_destroy(&mLock)) exit(EXIT_FAILURE);
 
     for(; i < fs->nBuckets; i++) {
-        MUTEX_DESTROY(&fs->locksM[i]);
+        if(pthread_mutex_destroy(&locks[i])) exit(EXIT_FAILURE);
     }
 
-    free(fs->locksM);
+    free(locks);
 
-    i = 0;
+    #elif RWLOCK
+    int i = 0;
 
-    RW_DESTROY(&rwLock);
+    if(pthread_rwlock_destroy(&mLock)) exit(EXIT_FAILURE);
 
     for(; i < fs->nBuckets; i++) {
-        RW_DESTROY(&fs->locksRW[i]);
+        if(pthread_rwlock_destroy(&locks[i])) exit(EXIT_FAILURE);
     }
     
-    free(fs->locksRW);
+    free(locks);
 
+    #endif
 }

@@ -17,9 +17,6 @@
 #define MAX_COMMANDS 150000
 #define MAX_INPUT_SIZE 100
 
-pthread_mutex_t mLock;
-pthread_rwlock_t rwLock;
-
 //Will contain the number of threads.
 int numberThreads;
 
@@ -103,15 +100,13 @@ void processInput(FILE *fp) {
 
 void* applyCommands() {
     while(1) {
-        MUTEX_LOCK(&mLock);
-        RW_LOCK(&rwLock);
+        LOCK(&mLock);
 
         if(numberCommands > 0) {
             const char* command = removeCommand();
 
             if (command == NULL) {
-                MUTEX_UNLOCK(&mLock);
-                RW_UNLOCK(&rwLock);
+                UNLOCK(&mLock);
                 return NULL;
             }
 
@@ -123,9 +118,7 @@ void* applyCommands() {
             //If the command is 'c', the iNumber is saved in order to prevent mixing up.
             if(token == 'c') iNumber = obtainNewInumber(fs);
 
-            MUTEX_UNLOCK(&mLock);
-            RW_UNLOCK(&rwLock);
-
+            UNLOCK(&mLock);
 
             if ((numTokens != 2 && strcmp(&token, "r")) && (!strcmp(&token, "r") && numTokens != 3)) {
                 fprintf(stderr, "Error: invalid command in Queue\n");
@@ -137,17 +130,14 @@ void* applyCommands() {
 
             switch (token) {
                 case 'c':
-                    MUTEX_LOCK(&fs->locksM[pos]);
-                    RW_LOCK(&fs->locksRW[pos]);
+                    LOCK(&locks[pos]);
 
                     create(fs, name, iNumber);
 
-                    MUTEX_UNLOCK(&fs->locksM[pos]);
-                    RW_UNLOCK(&fs->locksRW[pos]);
+                    UNLOCK(&locks[pos]);
                     break;
                 case 'l':
-                    MUTEX_LOCK(&fs->locksM[pos]);
-                    RD_LOCK(&fs->locksRW[pos]);
+                    RD_LOCK(&locks[pos]);
 
                     searchResult = lookup(fs, name);
                     if(!searchResult)
@@ -155,20 +145,17 @@ void* applyCommands() {
                     else
                         printf("%s found with inumber %d\n", name, searchResult);
 
-                    MUTEX_UNLOCK(&fs->locksM[pos]);
-                    RW_UNLOCK(&fs->locksRW[pos]);
+                    UNLOCK(&locks[pos]);
                     break;
                 case 'd':
-                    MUTEX_LOCK(&fs->locksM[pos]);
-                    RW_LOCK(&fs->locksRW[pos]);
+                    LOCK(&locks[pos]);
 
                     delete(fs, name);
 
-                    MUTEX_UNLOCK(&fs->locksM[pos]);
-                    RW_UNLOCK(&fs->locksRW[pos]);
+                    UNLOCK(&locks[pos]);
                     break;
                 case 'r':
-                    printf("%d\n", pos);
+                    printf("Commando r - %d\n", pos);
                     /*
                     MUTEX_LOCK(&lockFS);
                     RW_LOCK(&rwlockFS);
@@ -185,8 +172,7 @@ void* applyCommands() {
                 }
             }
         } else {
-            MUTEX_UNLOCK(&mLock);
-            RW_UNLOCK(&rwLock);
+            UNLOCK(&mLock);
             return NULL;
         }
     }
@@ -233,6 +219,9 @@ int main(int argc, char *argv[]) {
     threads = (pthread_t*) malloc(sizeof(pthread_t*) * numberThreads);
 
     fs = new_tecnicofs(nBuckets);
+
+	create_locks(fs);
+
     processInput(fpI);
 
     //Will save the current time in 'start'.
@@ -253,7 +242,6 @@ int main(int argc, char *argv[]) {
 
     print_tecnicofs_tree(fpO, fs);
 
-    destroy_locks(fs);
     free_tecnicofs(fs);
     free(threads);
 

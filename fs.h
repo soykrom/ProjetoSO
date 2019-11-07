@@ -5,8 +5,6 @@
 
 typedef struct tecnicofs {
     node **bstRoot;
-    pthread_mutex_t *locksM;
-    pthread_rwlock_t *locksRW;
     int nextINumber;
     int nBuckets;
 } tecnicofs;

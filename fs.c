@@ -25,14 +25,13 @@ tecnicofs* new_tecnicofs(int n_buckets) {
 	}
 
 	fs->nextINumber = 0;
-
-	create_locks(fs);
 	return fs;
 }
 
 void free_tecnicofs(tecnicofs *fs) {
 	int i;
 
+	destroy_locks(fs);
 	for(i = 0; i < fs->nBuckets; i++) {
 		free_tree(fs->bstRoot[i]);
 	}
