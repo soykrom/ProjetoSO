@@ -54,8 +54,10 @@ clean:
 	rm -f lib/*.o *.o tecnicofs-mutex tecnicofs-rwlock tecnicofs-nosync
 
 clean-outputs:
-	@echo Cleaning...
+	@echo Cleaning outputs...
 	rm -f outputs/*.txt
+
+clean-all: clean clean-outputs
 
 run: all jog clean
 

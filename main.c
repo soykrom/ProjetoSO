@@ -94,7 +94,7 @@ void processInput(FILE *fp) {
             }
         }
     }
-
+    
     fclose(fp);
 }
 
@@ -120,7 +120,7 @@ void* applyCommands() {
 
             UNLOCK(&mLock);
 
-            if ((numTokens != 2 && strcmp(&token, "r")) && (!strcmp(&token, "r") && numTokens != 3)) {
+            if ((numTokens != 2 && token != 'r') && (token == 'r' && numTokens != 3)) {
                 fprintf(stderr, "Error: invalid command in Queue\n");
                 exit(EXIT_FAILURE);
             }

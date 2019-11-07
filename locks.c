@@ -20,8 +20,6 @@ void create_locks(tecnicofs *fs) {
         if(pthread_mutex_init(&locks[i], NULL)) exit(EXIT_FAILURE);
     }
 
-    printf("Leaving create\n");
-
 
     #elif RWLOCK
     int i = 0;

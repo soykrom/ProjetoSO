@@ -10,7 +10,7 @@ int obtainNewInumber(tecnicofs *fs) {
 }
 
 tecnicofs* new_tecnicofs(int n_buckets) {
-	tecnicofs *fs = malloc(sizeof(tecnicofs));
+	tecnicofs *fs = (tecnicofs*) malloc(sizeof(tecnicofs));
 
 	if(!fs) {
 		perror("failed to allocate tecnicofs");
@@ -23,6 +23,8 @@ tecnicofs* new_tecnicofs(int n_buckets) {
 		perror("failed to allocate fs->bstRoot");
 		exit(EXIT_FAILURE);
 	}
+
+	for(int i = 0; i < fs->nBuckets; i++) fs->bstRoot[i] = NULL;
 
 	fs->nextINumber = 0;
 	return fs;
