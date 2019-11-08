@@ -8,13 +8,15 @@
 #include <getopt.h>
 #include <string.h>
 #include <ctype.h>
+#include <semaphore.h>
 #include <sys/time.h>
 #include <pthread.h>
 #include <unistd.h>
 #include "fs.h"
 #include "locks.h"
 
-#define MAX_COMMANDS 150000
+//#define MAX_COMMANDS 150000
+#define MAX_COMMANDS 10
 #define MAX_INPUT_SIZE 100
 
 //Will contain the number of threads.
@@ -23,8 +25,12 @@ int numberThreads;
 //Init of the pointer that'll point to the threads.
 pthread_t *threads = NULL;
 
+sem_t can_produce;
+sem_t can_consume;
+
 tecnicofs *fs;
 char inputCommands[MAX_COMMANDS][MAX_INPUT_SIZE];
+int commandsInQueue = 0;
 int numberCommands = 0;
 int headQueue = 0;
 
@@ -41,18 +47,29 @@ static void parseArgs (long argc, char* const argv[]) {
 }
 
 int insertCommand(char* data) {
-    if(numberCommands != MAX_COMMANDS) {
-        strcpy(inputCommands[numberCommands++], data);
-        return 1;
-    }
+    sem_wait(&can_produce);
+    if(commandsInQueue != MAX_COMMANDS){
+      strcpy(inputCommands[numberCommands++], data);
 
+      numberCommands = numberCommands % MAX_COMMANDS;
+
+      commandsInQueue++;
+      sem_post(&can_consume);
+      return 1;
+    }
+    printf("%d\n", commandsInQueue);
     return 0;
 }
 
 char* removeCommand() {
-    if((numberCommands > 0)) {
-        numberCommands--;
-        return inputCommands[headQueue++];
+    char* command;
+    if((commandsInQueue > 0) && strcmp(inputCommands[headQueue], "@")) {
+        commandsInQueue--;
+
+        command = inputCommands[headQueue++];
+        headQueue = headQueue % MAX_COMMANDS;
+
+        return command;
     }
     return NULL;
 }
@@ -66,6 +83,7 @@ void processInput(FILE *fp) {
     char line[MAX_INPUT_SIZE];
 
     while (fgets(line, sizeof(line)/sizeof(char), fp)) {
+
         char token;
         char name[MAX_INPUT_SIZE];
 
@@ -81,11 +99,13 @@ void processInput(FILE *fp) {
                 if(numTokens != 2) errorParse(fp);
 
                 if(insertCommand(line)) break;
+                fclose(fp);
                 return;
             case 'r':
                 if(numTokens != 3) errorParse(fp);
 
                 if(insertCommand(line)) break;
+                fclose(fp);
                 return;
             case '#':
                 break;
@@ -94,86 +114,87 @@ void processInput(FILE *fp) {
             }
         }
     }
-
     fclose(fp);
 }
 
 void* applyCommands() {
     while(1) {
+        sem_wait(&can_consume);
+
         LOCK(&mLock);
+        const char* command = removeCommand();
 
-        if(numberCommands > 0) {
-            const char* command = removeCommand();
-
-            if (command == NULL) {
-                UNLOCK(&mLock);
-                return NULL;
-            }
-
-            char token;
-            char name[MAX_INPUT_SIZE], newName[MAX_INPUT_SIZE];
-            int numTokens = sscanf(command, "%c %s %s", &token, name, newName);
-            int iNumber;
-
-            //If the command is 'c', the iNumber is saved in order to prevent mixing up.
-            if(token == 'c') iNumber = obtainNewInumber(fs);
-
-            UNLOCK(&mLock);
-
-            if ((numTokens != 2 && token != 'r') && (token == 'r' && numTokens != 3)) {
-                fprintf(stderr, "Error: invalid command in Queue\n");
-                exit(EXIT_FAILURE);
-            }
-
-            int searchResult;
-            int pos = hash(name, fs->nBuckets);
-
-            switch (token) {
-                case 'c':
-                    LOCK(&locks[pos]);
-
-                    create(fs, name, iNumber);
-
-                    UNLOCK(&locks[pos]);
-                    break;
-                case 'l':
-                    RD_LOCK(&locks[pos]);
-
-                    searchResult = lookup(fs, name);
-                    if(!searchResult)
-                        printf("%s not found\n", name);
-                    else
-                        printf("%s found with inumber %d\n", name, searchResult);
-
-                    UNLOCK(&locks[pos]);
-                    break;
-                case 'd':
-                    LOCK(&locks[pos]);
-
-                    delete(fs, name);
-
-                    UNLOCK(&locks[pos]);
-                    break;
-                case 'r':
-                    printf("Commando r - %d\n", pos);
-                    /*
-                    MUTEX_LOCK(&lockFS);
-                    RW_LOCK(&rwlockFS);
-
-                    change_name(fs, name, newName);
-
-                    MUTEX_UNLOCK(&lockFS);
-                    RW_UNLOCK(&rwlockFS);
-                    */
-                    break;
-                default: { /* error */
-                    fprintf(stderr, "Error: command to apply\n");
-                    exit(EXIT_FAILURE);
-                }
-            }
-        } else {
+        if (command == NULL) {
             UNLOCK(&mLock);
             return NULL;
+        }
+
+        char token;
+        char name[MAX_INPUT_SIZE], newName[MAX_INPUT_SIZE];
+        int numTokens = sscanf(command, "%c %s %s", &token, name, newName);
+        int iNumber;
+
+        //If the command is 'c', the iNumber is saved in order to prevent mixing up.
+        if(token == 'c') iNumber = obtainNewInumber(fs);
+
+        UNLOCK(&mLock);
+
+        if ((numTokens != 2 && token == 'r') && (token == 'r' && numTokens != 3)) {
+            fprintf(stderr, "Error: invalid command in Queue\n");
+            exit(EXIT_FAILURE);
+        }
+
+        int searchResult;
+        int pos = hash(name, fs->nBuckets);
+
+        printf("%c %s\n", token, name);
+
+        switch (token) {
+            case 'c':
+                LOCK(&locks[pos]);
+
+                create(fs, name, iNumber);
+
+                UNLOCK(&locks[pos]);
+                sem_post(&can_produce);
+                break;
+            case 'l':
+                RD_LOCK(&locks[pos]);
+
+                searchResult = lookup(fs, name);
+                if(!searchResult)
+                    printf("%s not found\n", name);
+                else
+                    printf("%s found with inumber %d\n", name, searchResult);
+
+                UNLOCK(&locks[pos]);
+                sem_post(&can_produce);
+                break;
+            case 'd':
+                LOCK(&locks[pos]);
+
+                delete(fs, name);
+
+                UNLOCK(&locks[pos]);
+                sem_post(&can_produce);
+                break;
+            case 'r':
+                printf("Commando r - %d\n", pos);
+                /*
+                MUTEX_LOCK(&lockFS);
+                RW_LOCK(&rwlockFS);
+
+                change_name(fs, name, newName);
+
+                MUTEX_UNLOCK(&lockFS);
+                RW_UNLOCK(&rwlockFS);
+                */
+                sem_post(&can_produce);
+                break;
+            default: { /* error */
+                fprintf(stderr, "Error: command to apply\n");
+                exit(EXIT_FAILURE);
+            }
         }
     }
 }
@@ -220,9 +241,10 @@ int main(int argc, char *argv[]) {
 
     fs = new_tecnicofs(nBuckets);
 
-	create_locks(fs);
+    sem_init(&can_produce, 0, 10);
+    sem_init(&can_consume, 0, 0);
 
-    processInput(fpI);
+	  create_locks(fs);
 
     //Will save the current time in 'start'.
     gettimeofday(&start, NULL);
@@ -230,8 +252,21 @@ int main(int argc, char *argv[]) {
     for(; i < numberThreads; i++)
         if(pthread_create(&threads[i], NULL, *applyCommands, NULL)) exit(EXIT_FAILURE);
 
-    for(i = 0; i < numberThreads; i++)
-        if(pthread_join(threads[i], NULL)) exit(EXIT_FAILURE);
+    processInput(fpI);
+
+    insertDelay(DELAY);
+
+    for(i = 0; i < numberThreads + 1; i++) {
+      sem_post(&can_consume);
+    }
+
+    for(i = 0; i < numberThreads; i++) {
+        if(pthread_join(threads[i], NULL)){
+          exit(EXIT_FAILURE);
+        }
+        printf("Eu, thread nº %d sai do apply\n", i);
+
+    }
 
     //Will save the end time of the the threads' execution.
     gettimeofday(&end, NULL);
@@ -244,6 +279,8 @@ int main(int argc, char *argv[]) {
 
     free_tecnicofs(fs);
     free(threads);
+    sem_destroy(&can_consume);
+    sem_destroy(&can_produce);
 
     exit(EXIT_SUCCESS);
 }
