@@ -61,39 +61,46 @@ void delete(tecnicofs *fs, char *name, int i) {
 void change_name(tecnicofs *fs, char *oldName, char *newName, int h1) {
 	int h2 = hash(newName, fs->nBuckets);
 
-	LOCK(&locks[h1]);
-	node *old = search(fs->bstRoot[h1], oldName);
-
-	if(!old) {
-		UNLOCK(&locks[h1]);
-
-		return;
-	}
-
 	if(h1 == h2) {
+		LOCK(&locks[h1]);
+
+		node *old = search(fs->bstRoot[h1], oldName);
+		if(!old) {
+			UNLOCK(&locks[h1]);
+
+			return;
+		}
+
 		if(!search(fs->bstRoot[h1], newName)) {
 			fs->bstRoot[h1] = insert(fs->bstRoot[h1], newName, old->inumber);
 			fs->bstRoot[h1] = remove_item(fs->bstRoot[h1], oldName);
-
-			UNLOCK(&locks[h1]);
-		} else {
-			UNLOCK(&locks[h1]);
 		}
 
+		UNLOCK(&locks[h1]);
 	} else { //h1 != h2
+		if(h1 > h2) { //Dar Lock por ordem de maior hash de maneira a evitar situações de deadlock
+			LOCK(&locks[h1]); 
+			LOCK(&locks[h2]);
+		 } else {
+			LOCK(&locks[h2]); 
+			LOCK(&locks[h1]);
+		 }
 
-		LOCK(&locks[h2]);
-		
+		node *old = search(fs->bstRoot[h1], oldName);
+
+		if(!old) {
+			UNLOCK(&locks[h1]);
+
+			return;
+		}
+
 		if(!search(fs->bstRoot[h2], newName)) {
 			fs->bstRoot[h2] = insert(fs->bstRoot[h2], newName, old->inumber);
 			fs->bstRoot[h1] = remove_item(fs->bstRoot[h1], oldName);
-
-			UNLOCK(&locks[h1]);
-			UNLOCK(&locks[h2]);
-		} else {
-			UNLOCK(&locks[h1]);
-			UNLOCK(&locks[h2]);
 		}
+
+		UNLOCK(&locks[h1]);
+		UNLOCK(&locks[h2]);
 	}
 
 }

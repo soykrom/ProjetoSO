@@ -1,17 +1,18 @@
 c a 
+c d
 r a b
+r d c
 r b a
+r c d 
 r a b
+r d c
 r b a
+r c d 
 r a b
+r d c
 r b a
+r c d 
 r a b
+r d c
 r b a
-r a b
-r b a
-r a b
-r b a
-r a b
-r b a
-r a b
-r b a
+r c d 
