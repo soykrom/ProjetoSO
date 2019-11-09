@@ -14,10 +14,10 @@ int obtainNewInumber(tecnicofs *fs);
 tecnicofs *new_tecnicofs(int n_buckets);
 void free_tecnicofs(tecnicofs *fs);
 
-void create(tecnicofs *fs, char* name, int inumber);
-void delete(tecnicofs *fs, char* name);
-int lookup(tecnicofs *fs, char* name);
-void change_name(tecnicofs *fs, char *oldName, int pos, char *newName);
+void create(tecnicofs *fs, char* name, int inumber, int hash);
+void delete(tecnicofs *fs, char* name, int hash);
+int lookup(tecnicofs *fs, char* name, int hash);
+void change_name(tecnicofs *fs, char *oldName, char *newName, int hash);
 
 void print_tecnicofs_tree(FILE *fp, tecnicofs *fs);
 

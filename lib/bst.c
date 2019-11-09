@@ -15,6 +15,7 @@ node* new_node(char *key, int inumber) {
         perror("new_node: no memory for a new node");
         exit(EXIT_FAILURE);
     }
+
     size_t size = strlen(key) + 1;
     p->key = malloc(sizeof(char) * size);
 
@@ -33,7 +34,7 @@ int max(int a, int b) {
 node* search(node *p, char *key) {
     insertDelay(DELAY);
 
-    if(p == NULL) {
+    if(!p) {
         return NULL;
     }
 
@@ -80,7 +81,7 @@ node* remove_min(node *p) {
 node* remove_item(node *p, char *key) {
     insertDelay(DELAY);
 
-    if(p == NULL) return NULL;
+    if(!p) return NULL;
     
     int comp = strcmp(key, p->key);
 

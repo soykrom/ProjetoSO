@@ -1,8 +1,8 @@
 # Makefile, versao 1
 # Sistemas Operativos, DEI/IST/ULisboa 2019-20
 
-CC   = gcc
-LD   = gcc
+CC   = gcc -g
+LD   = gcc -g
 CFLAGS =-Wall -std=gnu99 -I../
 
 LDFLAGS=-lm -pthread

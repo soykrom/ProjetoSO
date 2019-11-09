@@ -149,14 +149,14 @@ void* applyCommands() {
             case 'c':
                 LOCK(&locks[pos]);
 
-                create(fs, name, iNumber);
+                create(fs, name, iNumber, pos);
 
                 UNLOCK(&locks[pos]);
                 break;
             case 'l':
                 RD_LOCK(&locks[pos]);
 
-                searchResult = lookup(fs, name);
+                searchResult = lookup(fs, name, pos);
                 if(!searchResult)
                     printf("%s not found\n", name);
                 else
@@ -167,12 +167,12 @@ void* applyCommands() {
             case 'd':
                 LOCK(&locks[pos]);
 
-                delete(fs, name);
+                delete(fs, name, pos);
 
                 UNLOCK(&locks[pos]);
                 break;
             case 'r':
-                change_name(fs, name, pos, newName);
+                change_name(fs, name, newName, pos);
 
                 break;
             default: { /* error */
@@ -199,7 +199,6 @@ FILE* openFile(const char *ficheiro, const char *modo) {
 
 
 int main(int argc, char *argv[]) {
-
     //Creation of the time variables.
     struct timeval start, end;
     double time;
@@ -240,7 +239,7 @@ int main(int argc, char *argv[]) {
 
     insertCommand("@");
     if(sem_post(&can_consume)) exit(EXIT_FAILURE);
-
+    
     for(i = 0; i < numberThreads; i++) {
         if(pthread_join(threads[i], NULL)) exit(EXIT_FAILURE);
     }

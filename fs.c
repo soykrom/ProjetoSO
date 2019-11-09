@@ -42,16 +42,11 @@ void free_tecnicofs(tecnicofs *fs) {
 	free(fs);
 }
 
-void create(tecnicofs *fs, char *name, int inumber) {
-	int i = hash(name, fs->nBuckets);
-
-	if(!fs->bstRoot[i]) fs->bstRoot[i] = new_node(name, inumber);
-
+void create(tecnicofs *fs, char *name, int inumber, int i) {
 	fs->bstRoot[i] = insert(fs->bstRoot[i], name, inumber);
 }
 
-int lookup(tecnicofs *fs, char *name) {
-	int i = hash(name, fs->nBuckets);
+int lookup(tecnicofs *fs, char *name, int i) {
 	node *searchNode = search(fs->bstRoot[i], name);
 
 	if (searchNode) return searchNode->inumber;
@@ -59,18 +54,14 @@ int lookup(tecnicofs *fs, char *name) {
 	return 0;
 }
 
-void delete(tecnicofs *fs, char *name) {
-	int i = hash(name, fs->nBuckets);
-
+void delete(tecnicofs *fs, char *name, int i) {
 	fs->bstRoot[i] = remove_item(fs->bstRoot[i], name);
 }
 
-void change_name(tecnicofs *fs, char *oldName, int pos, char *newName) {
-	int h1 = pos;
+void change_name(tecnicofs *fs, char *oldName, char *newName, int h1) {
 	int h2 = hash(newName, fs->nBuckets);
 
 	LOCK(&locks[h1]);
-
 	node *old = search(fs->bstRoot[h1], oldName);
 
 	if(!old) {
@@ -81,31 +72,30 @@ void change_name(tecnicofs *fs, char *oldName, int pos, char *newName) {
 
 	if(h1 == h2) {
 		if(!search(fs->bstRoot[h1], newName)) {
-			create(fs, newName, old->inumber);
-			delete(fs, oldName);
+			fs->bstRoot[h1] = insert(fs->bstRoot[h1], newName, old->inumber);
+			fs->bstRoot[h1] = remove_item(fs->bstRoot[h1], oldName);
 
 			UNLOCK(&locks[h1]);
 		} else {
 			UNLOCK(&locks[h1]);
-			return;
 		}
 
 	} else { //h1 != h2
-		LOCK(&locks[h2]);
 
-		if(!search(fs->bstRoot[h2], newName)) { //SIGSEV from time to time. Don't know why :/
-			create(fs, newName, old->inumber);
-			delete(fs, oldName);
+		LOCK(&locks[h2]);
+		
+		if(!search(fs->bstRoot[h2], newName)) {
+			fs->bstRoot[h2] = insert(fs->bstRoot[h2], newName, old->inumber);
+			fs->bstRoot[h1] = remove_item(fs->bstRoot[h1], oldName);
 
 			UNLOCK(&locks[h1]);
 			UNLOCK(&locks[h2]);
 		} else {
 			UNLOCK(&locks[h1]);
 			UNLOCK(&locks[h2]);
-
-			return;
 		}
 	}
+
 }
 
 void print_tecnicofs_tree(FILE *fp, tecnicofs *fs) {
