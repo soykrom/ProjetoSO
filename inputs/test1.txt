@@ -5,6 +5,7 @@ c c
 c d
 c e
 c f
+r f z
 c g
 d g
 c h

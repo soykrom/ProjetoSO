@@ -65,16 +65,48 @@ void delete(tecnicofs *fs, char *name) {
 	fs->bstRoot[i] = remove_item(fs->bstRoot[i], name);
 }
 
-/*
-void change_name(tecnicofs *fs, char *oldName, char *newName) {
-	int iNumber = lookup(fs, oldName);
+void change_name(tecnicofs *fs, char *oldName, int pos, char *newName) {
+	int h1 = pos;
+	int h2 = hash(newName, fs->nBuckets);
 
-	if(iNumber || !lookup(fs, newName)) {
-		delete(fs, oldName);
-		create(fs, newName, iNumber);
+	LOCK(&locks[h1]);
+
+	node *old = search(fs->bstRoot[h1], oldName);
+
+	if(!old) {
+		UNLOCK(&locks[h1]);
+
+		return;
+	}
+
+	if(h1 == h2) {
+		if(!search(fs->bstRoot[h1], newName)) {
+			create(fs, newName, old->inumber);
+			delete(fs, oldName);
+
+			UNLOCK(&locks[h1]);
+		} else {
+			UNLOCK(&locks[h1]);
+			return;
+		}
+
+	} else { //h1 != h2
+		LOCK(&locks[h2]);
+
+		if(!search(fs->bstRoot[h2], newName)) { //SIGSEV from time to time. Don't know why :/
+			create(fs, newName, old->inumber);
+			delete(fs, oldName);
+
+			UNLOCK(&locks[h1]);
+			UNLOCK(&locks[h2]);
+		} else {
+			UNLOCK(&locks[h1]);
+			UNLOCK(&locks[h2]);
+
+			return;
+		}
 	}
 }
-*/
 
 void print_tecnicofs_tree(FILE *fp, tecnicofs *fs) {
 	int i;

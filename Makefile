@@ -62,11 +62,14 @@ clean-all: clean clean-outputs
 run: all jog clean
 
 jog:
-	./tecnicofs-mutex inputs/test3.txt outputs/test3-mutex.txt 10 5
-	./tecnicofs-rwlock inputs/test3.txt outputs/test3-rwlock.txt 10 5
-	./tecnicofs-nosync inputs/test3.txt outputs/test3-nosync.txt 1 1
+	./tecnicofs-mutex inputs/test2.txt outputs/test3-mutex.txt 10 5
+	./tecnicofs-rwlock inputs/test2.txt outputs/test3-rwlock.txt 10 5
+	./tecnicofs-nosync inputs/test2.txt outputs/test3-nosync.txt 1 1
+
+runt: all
+	./runTests.sh inputs/ outputs/ 10 4
 
 valgrind: all
-	valgrind --leak-check=full ./tecnicofs-mutex inputs/test1.txt outputs/test1-mutex.txt 10 4
-	valgrind --leak-check=full ./tecnicofs-rwlock inputs/test1.txt outputs/test1-rwlock.txt 10 4
-	valgrind --leak-check=full ./tecnicofs-nosync inputs/test1.txt outputs/test1-nosync.txt 1 1
+	valgrind --track-origins=yes ./tecnicofs-mutex inputs/test1.txt outputs/test1-mutex.txt 4 5
+	valgrind --track-origins=yes ./tecnicofs-rwlock inputs/test1.txt outputs/test1-rwlock.txt 4 5
+	valgrind --track-origins=yes ./tecnicofs-nosync inputs/test1.txt outputs/test1-nosync.txt 1 1

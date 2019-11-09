@@ -33,7 +33,9 @@ int max(int a, int b) {
 node* search(node *p, char *key) {
     insertDelay(DELAY);
 
-    if(p == NULL) return NULL;
+    if(p == NULL) {
+        return NULL;
+    }
 
     int comp = strcmp(key, p->key);
 

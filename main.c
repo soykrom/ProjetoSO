@@ -172,16 +172,8 @@ void* applyCommands() {
                 UNLOCK(&locks[pos]);
                 break;
             case 'r':
-                printf("Commando r - %d\n", pos);
-                /*
-                MUTEX_LOCK(&lockFS);
-                RW_LOCK(&rwlockFS);
+                change_name(fs, name, pos, newName);
 
-                change_name(fs, name, newName);
-
-                MUTEX_UNLOCK(&lockFS);
-                RW_UNLOCK(&rwlockFS);
-                */
                 break;
             default: { /* error */
                 fprintf(stderr, "Error: command to apply\n");
@@ -233,10 +225,10 @@ int main(int argc, char *argv[]) {
 
     fs = new_tecnicofs(nBuckets);
 
-    sem_init(&can_produce, 0, 10);
-    sem_init(&can_consume, 0, 0);
+    if(sem_init(&can_produce, 0, 10)) exit(EXIT_FAILURE);
+    if(sem_init(&can_consume, 0, 0)) exit(EXIT_FAILURE);
 
-	  create_locks(fs);
+	create_locks(fs);
 
     //Will save the current time in 'start'.
     gettimeofday(&start, NULL);
