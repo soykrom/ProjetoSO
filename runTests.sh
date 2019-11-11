@@ -1,9 +1,15 @@
 #!/bin/bash
 
-if [ "$#" -eq 4 ] && [ -d $1 ] && [ -d $2 ] && [ $4 -gt 0 ]; 
+if [ "$#" -eq 4 ] && [ -d $1 ] && [ $4 -gt 0 ]; 
 
 then
 
+	if ! [ -d $2 ]; 
+	
+	then
+		mkdir $2
+	fi
+	
 	for filename in $1/*.txt; 
 	
 	do
