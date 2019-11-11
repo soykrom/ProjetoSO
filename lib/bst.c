@@ -82,7 +82,7 @@ node* remove_item(node *p, char *key) {
     insertDelay(DELAY);
 
     if(!p) return NULL;
-    
+
     int comp = strcmp(key, p->key);
 
     if (comp < 0) {

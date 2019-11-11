@@ -13,7 +13,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include "fs.h"
-#include "locks.h"
+#include "macros.h"
 
 #define MAX_COMMANDS 10
 #define MAX_INPUT_SIZE 100

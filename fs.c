@@ -1,8 +1,73 @@
 #include "fs.h"
-#include "locks.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+
+//If the creation of locks is unsuccessful, will exit the program.
+void create_locks(tecnicofs *fs) {
+    #ifdef MUTEX
+    int i = 0;
+
+    if(pthread_mutex_init(&mLock, NULL)) exit(EXIT_FAILURE);
+
+    locks = (pthread_mutex_t*) malloc(sizeof(pthread_mutex_t) * fs->nBuckets); 
+    if(!locks) {
+        perror("failed to allocate locks");
+        exit(EXIT_FAILURE);
+    }
+
+    for(; i < fs->nBuckets; i++) {
+        if(pthread_mutex_init(&locks[i], NULL)) exit(EXIT_FAILURE);
+    }
+
+
+    #elif RWLOCK
+    int i = 0;
+
+    if(pthread_rwlock_init(&mLock, NULL)) exit(EXIT_FAILURE);
+
+    locks = (pthread_rwlock_t*) malloc(sizeof(pthread_rwlock_t) * fs->nBuckets); 
+    if(!locks) {
+        perror("failed to allocate locks");
+        exit(EXIT_FAILURE);
+    }
+
+    for(; i < fs->nBuckets; i++) {
+        if(pthread_rwlock_init(&locks[i], NULL)) exit(EXIT_FAILURE);
+    }
+
+    #endif
+}
+
+
+//If the destruction of locks is unsuccessful, will exit the program.
+void destroy_locks(tecnicofs *fs) {
+    #ifdef MUTEX
+    int i = 0;
+
+    if(pthread_mutex_destroy(&mLock)) exit(EXIT_FAILURE);
+
+    for(; i < fs->nBuckets; i++) {
+        if(pthread_mutex_destroy(&locks[i])) exit(EXIT_FAILURE);
+    }
+
+    free(locks);
+
+    #elif RWLOCK
+    int i = 0;
+
+    if(pthread_rwlock_destroy(&mLock)) exit(EXIT_FAILURE);
+
+    for(; i < fs->nBuckets; i++) {
+        if(pthread_rwlock_destroy(&locks[i])) exit(EXIT_FAILURE);
+    }
+    
+    free(locks);
+
+    #endif
+}
+
+
 
 int obtainNewInumber(tecnicofs *fs) {
 	int newInumber = ++(fs->nextINumber);
@@ -42,6 +107,8 @@ void free_tecnicofs(tecnicofs *fs) {
 	free(fs);
 }
 
+
+
 void create(tecnicofs *fs, char *name, int inumber, int i) {
 	fs->bstRoot[i] = insert(fs->bstRoot[i], name, inumber);
 }
@@ -64,45 +131,33 @@ void change_name(tecnicofs *fs, char *oldName, char *newName, int h1) {
 	if(h1 == h2) {
 		LOCK(&locks[h1]);
 
-		node *old = search(fs->bstRoot[h1], oldName);
-		if(!old) {
-			UNLOCK(&locks[h1]);
+		int inumber = lookup(fs, oldName, h1);
 
-			return;
-		}
-
-		if(!search(fs->bstRoot[h1], newName)) {
-			fs->bstRoot[h1] = insert(fs->bstRoot[h1], newName, old->inumber);
+		if(inumber && !lookup(fs, newName, h1)) {
 			fs->bstRoot[h1] = remove_item(fs->bstRoot[h1], oldName);
+			fs->bstRoot[h1] = insert(fs->bstRoot[h1], newName, inumber);
 		}
 
 		UNLOCK(&locks[h1]);
 	} else { //h1 != h2
-		if(h1 > h2) { //Dar Lock por ordem de maior hash de maneira a evitar situações de deadlock
+		if(h1 > h2) { //Dar Lock por ordem decrescente hash de maneira a evitar situacoes de deadlock
 			LOCK(&locks[h1]); 
 			LOCK(&locks[h2]);
-		 } else {
+		} else {
 			LOCK(&locks[h2]); 
 			LOCK(&locks[h1]);
-		 }
-
-		node *old = search(fs->bstRoot[h1], oldName);
-
-		if(!old) {
-			UNLOCK(&locks[h1]);
-
-			return;
 		}
+		
+		int inumber = lookup(fs, oldName, h1);
 
-		if(!search(fs->bstRoot[h2], newName)) {
-			fs->bstRoot[h2] = insert(fs->bstRoot[h2], newName, old->inumber);
+		if(inumber && !lookup(fs, newName, h2)) {
 			fs->bstRoot[h1] = remove_item(fs->bstRoot[h1], oldName);
+			fs->bstRoot[h2] = insert(fs->bstRoot[h2], newName, inumber);
 		}
 
 		UNLOCK(&locks[h1]);
 		UNLOCK(&locks[h2]);
 	}
-
 }
 
 void print_tecnicofs_tree(FILE *fp, tecnicofs *fs) {
