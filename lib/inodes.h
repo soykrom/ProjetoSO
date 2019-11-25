@@ -10,10 +10,10 @@
 
 
 typedef struct inode_t {
-	    uid_t owner;
-	        permission ownerPermissions;
-		    permission othersPermissions;
-		        char* fileContent;
+	uid_t owner;
+	permission ownerPermissions;
+	permission othersPermissions;
+	char* fileContent;
 } inode_t;
 
 

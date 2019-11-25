@@ -12,6 +12,7 @@
 #include <sys/time.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <signal.h>
 #include "fs.h"
 #include "macros.h"
 
@@ -31,6 +32,12 @@ tecnicofs *fs;
 char inputCommands[MAX_COMMANDS][MAX_INPUT_SIZE];
 int numberCommands = 0;
 int headQueue = 0;
+
+void signalHandler() {
+    printf("\nTerminating");
+
+    exit(EXIT_SUCCESS);
+}
 
 static void displayUsage (const char* appName) {
     printf("Usage: %s\n", appName);
@@ -207,10 +214,15 @@ int main(int argc, char *argv[]) {
 
     parseArgs(argc, argv);
 
+    if(signal(SIGINT, signalHandler) == SIG_ERR) {
+        fprintf(stderr, "Error_ invalid signal handler");
+        exit(EXIT_FAILURE);
+    }
+
     //Saves the number of threads.
     numberThreads =  atoi(argv[3]);
     if(numberThreads <= 0) {
-        fprintf(stderr, "Error: invalid number of threads\n");
+        fprintf(stderr, "Error: invalid number of threads");
         exit(EXIT_FAILURE);
     }
 
@@ -219,8 +231,16 @@ int main(int argc, char *argv[]) {
 
     //Saves the number of buckets.
     nBuckets = atoi(argv[4]);
+    if(nBuckets < 1) {
+        perror("Error: invalid number of buckets");
+        exit(EXIT_FAILURE);
+    }
 
     threads = (pthread_t*) malloc(sizeof(pthread_t*) * numberThreads);
+    if(!threads) {
+        perror("failed to allocate threads");
+        exit(EXIT_FAILURE);
+    }
 
     fs = new_tecnicofs(nBuckets);
 
@@ -258,5 +278,6 @@ int main(int argc, char *argv[]) {
     if(sem_destroy(&can_consume)) exit(EXIT_FAILURE);
     if(sem_destroy(&can_produce)) exit(EXIT_FAILURE);
 
+    for(;;) {}
     exit(EXIT_SUCCESS);
 }

@@ -28,10 +28,9 @@ fs-rwlock.o: fs.c fs.h lib/bst.h lib/hash.h macros.h
 main-rwlock.o: main.c lib/bst.h lib/hash.h fs.h macros.h
 	$(CC) $(CFLAGS) -DRWLOCK -o main-rwlock.o -c main.c
 
-
 clean:
 	@echo Cleaning...
-	rm -f lib/*.o *.o tecnicofs-mutex tecnicofs-rwlock tecnicofs-nosync
+	rm -f lib/*.o *.o tecnicofs-rwlock
 
 clean-outputs:
 	@echo Cleaning outputs...
