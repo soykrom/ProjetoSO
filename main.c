@@ -227,7 +227,7 @@ int main(int argc, char *argv[]) {
     if(sem_init(&can_produce, 0, 10)) exit(EXIT_FAILURE);
     if(sem_init(&can_consume, 0, 0)) exit(EXIT_FAILURE);
 
-	create_locks(fs);
+	  create_locks(fs);
 
     //Will save the current time in 'start'.
     gettimeofday(&start, NULL);
@@ -239,7 +239,7 @@ int main(int argc, char *argv[]) {
 
     insertCommand("@");
     if(sem_post(&can_consume)) exit(EXIT_FAILURE);
-    
+
     for(i = 0; i < numberThreads; i++) {
         if(pthread_join(threads[i], NULL)) exit(EXIT_FAILURE);
     }
