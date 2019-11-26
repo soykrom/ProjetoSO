@@ -22,12 +22,15 @@
 #define MAX_COMMANDS 10
 #define MAX_INPUT_SIZE 100
 #define MAX_CONNECTS 10
+#define MAXLINHA 512
 
 //Boolean to know if signal was triggered or not
 int terminated = 1;
 
 //Will contain the number of threads.
 int numberThreads;
+int currentThread = 0;
+
 //Init of the pointer that'll point to the threads.
 pthread_t *threads = NULL;
 
@@ -35,14 +38,16 @@ int numberCommands;
 int headQueue;
 //socket servidor
 int sockfd;
+int sockets[MAX_CONNECTS];
 struct sockaddr_un end_serv;
 
 tecnicofs *fs;
 char inputCommands[MAX_COMMANDS][MAX_INPUT_SIZE];
 
 void signalHandler() {
-    printf("\nTerminating");
+    printf("\nTerminating\n");
 
+    close(sockfd);
     for(int  i = 0; i < numberThreads; i++) {
         if(pthread_join(threads[i], NULL)) {
             perror("Erro ao dar join das threads");
@@ -50,7 +55,7 @@ void signalHandler() {
         }
     }
 
-    terminated = 0;
+    exit(EXIT_SUCCESS);
 }
 
 static void displayUsage (const char* appName) {
@@ -94,10 +99,17 @@ void errorParse(FILE *fp) {
 }
 
 void* clientHandler() {
-    close(sockfd);
+    char buffer[MAXLINHA + 1];
+    int socket = sockets[currentThread - 1];
+    int n = 0;
 
-    printf("\nAm here\n");
+    n = read(socket, buffer, MAXLINHA + 1);
 
+    printf("%s  -  %d\n", buffer, n);
+
+    strcpy(buffer, "Adeus");
+
+    write(socket, buffer, strlen(buffer) + 1);
     return NULL;
 }
 
@@ -190,14 +202,12 @@ int main(int argc, char *argv[]) {
     struct timeval start, end;
     double time;
     int nBuckets;
-    int currentThread = 0;
-    int dim_serv, dim_cli;
-    struct sockaddr_un end_cli;
+    int dim_serv;
 
     parseArgs(argc, argv);
 
     if(signal(SIGINT, signalHandler) == SIG_ERR) {
-        fprintf(stderr, "Error_ invalid signal handler");
+        fprintf(stderr, "Error invalid signal handler");
         exit(EXIT_FAILURE);
     }
 
@@ -245,18 +255,18 @@ int main(int argc, char *argv[]) {
     while(terminated) {
         int client_socket;
 
-        dim_cli = sizeof(end_cli);
-
-        client_socket = accept(sockfd, (struct sockaddr *) &end_serv, &dim_cli);
+        client_socket = accept(sockfd, NULL, NULL);
         if(client_socket < 0) {
             perror("Erro ao criar ligacao dedicada - accept");
             exit(EXIT_FAILURE);
         }
 
-        if(pthread_create(&threads[currentThread], NULL, *clientHandler, NULL)) {
+        sockets[currentThread] = client_socket;
+        if(pthread_create(&threads[currentThread++], NULL, *clientHandler, NULL)) {
             perror("Erro ao criar thread para atender cliente");
             exit(EXIT_FAILURE);
         }
+        numberThreads = currentThread;
     }
 
     //Will save the end time of the the threads' execution.
