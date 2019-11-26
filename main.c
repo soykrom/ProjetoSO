@@ -13,30 +13,44 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <signal.h>
+#include <sys/un.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 #include "fs.h"
 #include "macros.h"
 
 #define MAX_COMMANDS 10
 #define MAX_INPUT_SIZE 100
+#define MAX_CONNECTS 10
+
+//Boolean to know if signal was triggered or not
+int terminated = 1;
 
 //Will contain the number of threads.
 int numberThreads;
-
 //Init of the pointer that'll point to the threads.
 pthread_t *threads = NULL;
 
-sem_t can_produce;
-sem_t can_consume;
+int numberCommands;
+int headQueue;
+//socket servidor
+int sockfd;
+struct sockaddr_un end_serv;
 
 tecnicofs *fs;
 char inputCommands[MAX_COMMANDS][MAX_INPUT_SIZE];
-int numberCommands = 0;
-int headQueue = 0;
 
 void signalHandler() {
     printf("\nTerminating");
 
-    exit(EXIT_SUCCESS);
+    for(int  i = 0; i < numberThreads; i++) {
+        if(pthread_join(threads[i], NULL)) {
+            perror("Erro ao dar join das threads");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    terminated = 0;
 }
 
 static void displayUsage (const char* appName) {
@@ -45,7 +59,7 @@ static void displayUsage (const char* appName) {
 }
 
 static void parseArgs (long argc, char* const argv[]) {
-    if (argc != 5) {
+    if (argc != 4) {
         fprintf(stderr, "Invalid format:\n");
         displayUsage(argv[0]);
     }
@@ -53,13 +67,11 @@ static void parseArgs (long argc, char* const argv[]) {
 
 int insertCommand(char* data) {
     //If the queue is full, it waits until it has space.
-    if(sem_wait(&can_produce)) exit(EXIT_FAILURE);
 
     strcpy(inputCommands[numberCommands++], data);
 
     numberCommands = numberCommands % MAX_COMMANDS;
 
-    if(sem_post(&can_consume)) exit(EXIT_FAILURE);
     return 1;
 }
 
@@ -70,7 +82,6 @@ char* removeCommand() {
     if(strcmp(inputCommands[headQueue], "@")) {
 
         command = inputCommands[headQueue++];
-        headQueue = headQueue % MAX_COMMANDS;
 
         return command;
     }
@@ -82,45 +93,16 @@ void errorParse(FILE *fp) {
     //exit(EXIT_FAILURE);
 }
 
-void processInput(FILE *fp) {
-    char line[MAX_INPUT_SIZE];
+void* clientHandler() {
+    close(sockfd);
 
-    while (fgets(line, sizeof(line)/sizeof(char), fp)) {
+    printf("\nAm here\n");
 
-        char token;
-        char name[MAX_INPUT_SIZE];
-
-        int numTokens = sscanf(line, "%c %s", &token, name);
-
-        /* perform minimal validation */
-        if (numTokens < 1) continue;
-
-        switch (token) {
-            case 'c':
-            case 'l':
-            case 'd':
-                if(numTokens != 2) errorParse(fp);
-
-                if(insertCommand(line)) break;
-                return;
-            case 'r':
-                if(numTokens != 3) errorParse(fp);
-
-                if(insertCommand(line)) break;
-                return;
-            case '#':
-                break;
-            default: { /* error */
-                errorParse(fp);
-            }
-        }
-    }
-    fclose(fp);
+    return NULL;
 }
 
 void* applyCommands() {
     while(1) {
-        if(sem_wait(&can_consume)) exit(EXIT_FAILURE);
 
         LOCK(&mLock);
         const char* command = removeCommand();
@@ -128,7 +110,6 @@ void* applyCommands() {
         //After a thread enters this condition, all of them will enter and exit the function.
         if (command == NULL) {
             UNLOCK(&mLock);
-            if(sem_post(&can_consume)) exit(EXIT_FAILURE);
             return NULL;
         }
 
@@ -142,7 +123,6 @@ void* applyCommands() {
 
         UNLOCK(&mLock);
 
-        if(sem_post(&can_produce)) exit(EXIT_FAILURE);
 
         if ((numTokens != 2 && token == 'r') && (token == 'r' && numTokens != 3)) {
             fprintf(stderr, "Error: invalid command in Queue\n");
@@ -210,7 +190,9 @@ int main(int argc, char *argv[]) {
     struct timeval start, end;
     double time;
     int nBuckets;
-    int i = 0;
+    int currentThread = 0;
+    int dim_serv, dim_cli;
+    struct sockaddr_un end_cli;
 
     parseArgs(argc, argv);
 
@@ -219,49 +201,62 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    //Saves the number of threads.
-    numberThreads =  atoi(argv[3]);
-    if(numberThreads <= 0) {
-        fprintf(stderr, "Error: invalid number of threads");
-        exit(EXIT_FAILURE);
-    }
-
-    FILE *fpI = openFile(argv[1], "r");
     FILE *fpO = openFile(argv[2], "w");
 
-    //Saves the number of buckets.
-    nBuckets = atoi(argv[4]);
-    if(nBuckets < 1) {
+    nBuckets = atoi(argv[3]);
+    if(nBuckets != 1) {
         perror("Error: invalid number of buckets");
-        exit(EXIT_FAILURE);
-    }
-
-    threads = (pthread_t*) malloc(sizeof(pthread_t*) * numberThreads);
-    if(!threads) {
-        perror("failed to allocate threads");
         exit(EXIT_FAILURE);
     }
 
     fs = new_tecnicofs(nBuckets);
 
-    if(sem_init(&can_produce, 0, 10)) exit(EXIT_FAILURE);
-    if(sem_init(&can_consume, 0, 0)) exit(EXIT_FAILURE);
+    create_locks(fs);
+    
+    numberThreads = MAX_CONNECTS;
+    threads = (pthread_t*) malloc(sizeof(pthread_t*) * numberThreads);
+    if(!threads) {
+        perror("failed to allocate threads");
+        exit(EXIT_FAILURE);
+    }
+    
+    if((sockfd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
+        perror("Erro ao criar socket stream servidor");
+        exit(EXIT_FAILURE);
+    }
 
-	  create_locks(fs);
+    unlink(argv[1]);
+
+    bzero((char *) &end_serv, sizeof(end_serv));
+
+    end_serv.sun_family = AF_UNIX;
+    strcpy(end_serv.sun_path, argv[1]);
+    dim_serv = strlen(end_serv.sun_path) + sizeof(end_serv.sun_family);
+
+    if(bind(sockfd, (struct sockaddr *) &end_serv, dim_serv)) {
+        perror("Erro ao atribuir nome ao socket servidor");
+        exit(EXIT_FAILURE);
+    }
 
     //Will save the current time in 'start'.
     gettimeofday(&start, NULL);
 
-    for(; i < numberThreads; i++)
-        if(pthread_create(&threads[i], NULL, *applyCommands, NULL)) exit(EXIT_FAILURE);
+    listen(sockfd, MAX_CONNECTS);
+    while(terminated) {
+        int client_socket;
 
-    processInput(fpI);
+        dim_cli = sizeof(end_cli);
 
-    insertCommand("@");
-    if(sem_post(&can_consume)) exit(EXIT_FAILURE);
+        client_socket = accept(sockfd, (struct sockaddr *) &end_serv, &dim_cli);
+        if(client_socket < 0) {
+            perror("Erro ao criar ligacao dedicada - accept");
+            exit(EXIT_FAILURE);
+        }
 
-    for(i = 0; i < numberThreads; i++) {
-        if(pthread_join(threads[i], NULL)) exit(EXIT_FAILURE);
+        if(pthread_create(&threads[currentThread], NULL, *clientHandler, NULL)) {
+            perror("Erro ao criar thread para atender cliente");
+            exit(EXIT_FAILURE);
+        }
     }
 
     //Will save the end time of the the threads' execution.
@@ -275,9 +270,6 @@ int main(int argc, char *argv[]) {
 
     free_tecnicofs(fs);
     free(threads);
-    if(sem_destroy(&can_consume)) exit(EXIT_FAILURE);
-    if(sem_destroy(&can_produce)) exit(EXIT_FAILURE);
 
-    for(;;) {}
     exit(EXIT_SUCCESS);
 }

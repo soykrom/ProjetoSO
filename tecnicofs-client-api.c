@@ -1,4 +1,5 @@
 #include "tecnicofs-api-constants.h"
+#include "tecnicofs-client-api.h"
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -40,4 +41,12 @@ int tfsUnmount(){
     exit(TECNICOFS_ERROR_OTHER);
 
   return 0;
+}
+
+int tfsRead(int fd, char *buffer, int len) {
+  return read(fd, buffer, len);
+}
+
+int tfsWrite(int fd, char *buffer, int len) {
+  return write(fd, buffer, len);
 }

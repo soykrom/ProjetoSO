@@ -14,7 +14,7 @@ LDFLAGS=-lm -pthread
 all: tecnicofs-rwlock
 
 tecnicofs-rwlock: lib/hash.o lib/bst.o fs-rwlock.o main-rwlock.o
-	$(LD) $(CFLAGS) $(LDFLAGS) -o tecnicofs-rwlock lib/bst.o lib/hash.o fs-rwlock.o main-rwlock.o
+	$(LD) $(CFLAGS) $(LDFLAGS) -o server-api lib/bst.o lib/hash.o fs-rwlock.o main-rwlock.o
 
 lib/bst.o: lib/bst.c lib/bst.h
 	$(CC) $(CFLAGS) -o lib/bst.o -c lib/bst.c
@@ -25,7 +25,7 @@ lib/hash.o: lib/hash.c lib/hash.h
 fs-rwlock.o: fs.c fs.h lib/bst.h lib/hash.h macros.h
 	$(CC) $(CFLAGS) -DRWLOCK -o fs-rwlock.o -c fs.c
 
-main-rwlock.o: main.c lib/bst.h lib/hash.h fs.h macros.h
+main-rwlock.o: main.c lib/bst.h lib/hash.h fs.h macros.h 
 	$(CC) $(CFLAGS) -DRWLOCK -o main-rwlock.o -c main.c
 
 clean:
@@ -38,13 +38,14 @@ clean-outputs:
 
 clean-all: clean clean-outputs
 
-run: all jog clean
 
-jog:
-	./tecnicofs-rwlock inputs/test2.txt outputs/test3-rwlock.txt 4 5
+#run: all jog clean
 
-runt: all
-	./runTests.sh inputs/ outputs/ 4 4
+#jog:
+#	./tecnicofs-rwlock inputs/test2.txt outputs/test3-rwlock.txt 4 5
 
-valgrind: all
-	valgrind --track-origins=yes ./tecnicofs-rwlock inputs/test1.txt outputs/test1-rwlock.txt 4 5
+#runt: all
+#	./runTests.sh inputs/ outputs/ 4 4
+
+#valgrind: all
+#	valgrind --track-origins=yes ./tecnicofs-rwlock inputs/test1.txt outputs/test1-rwlock.txt 4 5
