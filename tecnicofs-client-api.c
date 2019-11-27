@@ -42,28 +42,32 @@ int tfsUnmount(){
     exit(TECNICOFS_ERROR_NO_OPEN_SESSION);
 
   char buffer[MAXLINHA];
-  
-  strcpy(buffer, "l\0");
+
+  strcpy(buffer, "l");
 
   write(sockfd, buffer, strlen(buffer) + 1);
 
   read(sockfd, buffer, MAXLINHA + 1);
 
-  if(close(sockfd) < 0)
-    exit(TECNICOFS_ERROR_OTHER);
-
-  return 0;
+  if(atoi(buffer) == 1){
+    if(close(sockfd) < 0) exit(TECNICOFS_ERROR_OTHER);
+    return 0;
+  }
+  exit(TECNICOFS_ERROR_OTHER);
 }
 
 int tfsCreate(char *filename, permission ownerPermissions, permission othersPermissions) {
   char buffer[MAXLINHA];
-  
-  sprintf(buffer, "%c %s %d %d", 'c', filename, ownerPermissions, othersPermissions);
+  int n;
+
+  sprintf(buffer, "c %s %d%d", filename, ownerPermissions, othersPermissions);
 
   write(sockfd, buffer, strlen(buffer) + 1);
+  printf("%s\n",buffer);
+  n = read(sockfd, buffer, MAXLINHA + 1);
+  printf("%s\n", buffer);
+  printf("%d\n", n);
 
-  int n = read(sockfd, buffer, MAXLINHA + 1);
-
-  return n;
-
+  if(atoi(buffer) == 1) return 0;
+  else return TECNICOFS_ERROR_FILE_ALREADY_EXISTS;
 }

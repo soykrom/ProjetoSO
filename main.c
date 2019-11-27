@@ -3,6 +3,7 @@
   Grupo 15
 */
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <getopt.h>
@@ -35,7 +36,9 @@ pthread_t *threads = NULL;
 int sockfd;
 int sockets[MAX_CONNECTS];
 struct sockaddr_un end_serv;
+struct ucred client_cred;
 
+FILE *fpO;
 tecnicofs *fs;
 char inputCommands[MAX_COMMANDS][MAX_INPUT_SIZE];
 
@@ -49,6 +52,10 @@ void signalHandler() {
             exit(EXIT_FAILURE);
         }
     }
+    print_tecnicofs_tree(fpO, fs);
+
+    free_tecnicofs(fs);
+    free(threads);
 
     exit(EXIT_SUCCESS);
 }
@@ -70,25 +77,48 @@ void errorParse(FILE *fp) {
     //exit(EXIT_FAILURE);
 }
 
-void* clientHandler() {
+void* clientHandler(void *uid) {
     char buffer[MAXLINHA + 1];
+    char response[3];
     int socket = sockets[currentThread - 1];
-
+    int iNumber;
+    long cli_uid = atoi(uid);
     char token;
+    char name[MAX_INPUT_SIZE], otherInfo[MAX_INPUT_SIZE];
 
     while(1) {
         read(socket, buffer, MAXLINHA);
 
-        token = buffer[0];
-
-        printf("%c\n", token);
+        printf("O que recebi do cliente\n");
         printf("%s\n", buffer);
 
-        strcpy(buffer, "@");
+        sscanf(buffer, "%c %s %s", &token, name, otherInfo);
+        int pos = hash(name, fs->nBuckets);
 
-        write(socket, buffer, strlen(buffer) + 1);
+        printf("O token que recebi\n");
+        printf("%c\n", token);
 
-        if(token == 'l') break;
+        if(token == 'c'){
+          iNumber = inode_create(cli_uid, atoi(otherInfo)/10, atoi(otherInfo)%10);
+
+          printf("O inumber de um novo ficheiro\n");
+          printf("%d\n", iNumber);
+
+          create(fs, name, iNumber, pos);
+          strcpy(response, "1");
+          write(socket, response, sizeof(buffer) + 1);
+
+          printf("A resposta ao cliente, que deve ser 1\n");
+          printf("%s\n", response);
+        }
+        //printf("%s\n", name);
+        //printf("%s\n", otherInfo);
+
+        if(token == 'l') {
+          strcpy(response, "1");
+          write(socket, response, sizeof(buffer) + 1);
+          break;
+        }
     }
 
     return NULL;
@@ -97,7 +127,7 @@ void* clientHandler() {
 char* removeCommand() {
     return "suh";
 }
-void* applyCommands() {
+/*void* applyCommands() {
     while(1) {
 
         LOCK(&mLock);
@@ -158,13 +188,13 @@ void* applyCommands() {
                 change_name(fs, name, newName, pos);
 
                 break;
-            default: { /* error */
+            default: {  error
                 fprintf(stderr, "Error: command to apply\n");
                 exit(EXIT_FAILURE);
             }
         }
     }
-}
+}*/
 
 FILE* openFile(const char *ficheiro, const char *modo) {
     FILE *fp = fopen(ficheiro, modo);
@@ -187,6 +217,8 @@ int main(int argc, char *argv[]) {
     double time;
     int nBuckets;
     int dim_serv;
+    int len_cred;
+    char uid[30];
 
     parseArgs(argc, argv);
 
@@ -195,7 +227,7 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    FILE *fpO = openFile(argv[2], "w");
+    fpO = openFile(argv[2], "w");
 
     nBuckets = atoi(argv[3]);
     if(nBuckets != 1) {
@@ -206,14 +238,14 @@ int main(int argc, char *argv[]) {
     fs = new_tecnicofs(nBuckets);
 
     create_locks(fs);
-    
+
     numberThreads = MAX_CONNECTS;
     threads = (pthread_t*) malloc(sizeof(pthread_t*) * numberThreads);
     if(!threads) {
         perror("failed to allocate threads");
         exit(EXIT_FAILURE);
     }
-    
+
     if((sockfd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
         perror("Erro ao criar socket stream servidor");
         exit(EXIT_FAILURE);
@@ -245,8 +277,16 @@ int main(int argc, char *argv[]) {
             exit(EXIT_FAILURE);
         }
 
+        len_cred = sizeof(struct ucred);
+        if(getsockopt(client_socket, SOL_SOCKET, SO_PEERCRED, &client_cred, &len_cred) == -1){
+          perror("Erro ao obter as credenciais do cliente");
+          exit(EXIT_FAILURE);
+        }
+
+        sprintf(uid, "%d", client_cred.uid);
+
         sockets[currentThread] = client_socket;
-        if(pthread_create(&threads[currentThread++], NULL, *clientHandler, NULL)) {
+        if(pthread_create(&threads[currentThread++], NULL, *clientHandler, uid)) {
             perror("Erro ao criar thread para atender cliente");
             exit(EXIT_FAILURE);
         }

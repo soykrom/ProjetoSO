@@ -2,18 +2,18 @@
 #define FS_H
 #include "lib/bst.h"
 #include "lib/hash.h"
+#include "lib/inodes.h"
 #include "macros.h"
 
 typedef struct tecnicofs {
     node **bstRoot;
-    int nextINumber;
     int nBuckets;
 } tecnicofs;
 
 void create_locks(tecnicofs *fs);
 void destroy_locks(tecnicofs *fs);
 
-int obtainNewInumber(tecnicofs *fs);
+//int obtainNewInumber(tecnicofs *fs);
 
 tecnicofs *new_tecnicofs(int n_buckets);
 void free_tecnicofs(tecnicofs *fs);

@@ -12,7 +12,9 @@ int main(int argc, char *argv[]) {
 
 	tfsMount(argv[1]);
 
-	tfsCreate("hi", 2, 1);
+	if(tfsCreate("hi", 2, 1) == 0) printf("fixe\n");
+	//Com 1 create da bem.
+	//if(tfsCreate("hello", 2, 1) == 0) printf("mega fixe\n");
 
 	tfsUnmount();
 
@@ -20,4 +22,3 @@ int main(int argc, char *argv[]) {
 
 
 }
-	

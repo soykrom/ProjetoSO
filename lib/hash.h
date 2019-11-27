@@ -1,5 +1,5 @@
 #ifndef HASH_H
-#define HASH_H 
+#define HASH_H
 #include "bst.h"
 #include <pthread.h>
 

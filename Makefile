@@ -13,8 +13,8 @@ LDFLAGS=-lm -pthread
 
 all: tecnicofs-rwlock
 
-tecnicofs-rwlock: lib/hash.o lib/bst.o fs-rwlock.o main-rwlock.o
-	$(LD) $(CFLAGS) $(LDFLAGS) -o server-api lib/bst.o lib/hash.o fs-rwlock.o main-rwlock.o
+tecnicofs-rwlock: lib/hash.o lib/bst.o lib/inodes.o fs-rwlock.o main-rwlock.o
+	$(LD) $(CFLAGS) $(LDFLAGS) -o server-api lib/bst.o lib/hash.o lib/inodes.o fs-rwlock.o main-rwlock.o
 
 lib/bst.o: lib/bst.c lib/bst.h
 	$(CC) $(CFLAGS) -o lib/bst.o -c lib/bst.c
@@ -22,10 +22,13 @@ lib/bst.o: lib/bst.c lib/bst.h
 lib/hash.o: lib/hash.c lib/hash.h
 	$(CC) $(CFLAGS) -o lib/hash.o -c lib/hash.c
 
-fs-rwlock.o: fs.c fs.h lib/bst.h lib/hash.h macros.h
+lib/inodes.o: lib/inodes.c lib/inodes.h
+	$(CC) $(CFLAGS) -o lib/inodes.o -c lib/inodes.c
+
+fs-rwlock.o: fs.c fs.h lib/bst.h lib/hash.h lib/inodes.h macros.h
 	$(CC) $(CFLAGS) -DRWLOCK -o fs-rwlock.o -c fs.c
 
-main-rwlock.o: main.c lib/bst.h lib/hash.h fs.h macros.h 
+main-rwlock.o: main.c lib/bst.h lib/hash.h fs.h lib/inodes.h macros.h 
 	$(CC) $(CFLAGS) -DRWLOCK -o main-rwlock.o -c main.c
 
 clean:

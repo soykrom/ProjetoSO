@@ -10,7 +10,7 @@ void create_locks(tecnicofs *fs) {
 
     if(pthread_mutex_init(&mLock, NULL)) exit(EXIT_FAILURE);
 
-    locks = (pthread_mutex_t*) malloc(sizeof(pthread_mutex_t) * fs->nBuckets); 
+    locks = (pthread_mutex_t*) malloc(sizeof(pthread_mutex_t) * fs->nBuckets);
     if(!locks) {
         perror("failed to allocate locks");
         exit(EXIT_FAILURE);
@@ -26,7 +26,7 @@ void create_locks(tecnicofs *fs) {
 
     if(pthread_rwlock_init(&mLock, NULL)) exit(EXIT_FAILURE);
 
-    locks = (pthread_rwlock_t*) malloc(sizeof(pthread_rwlock_t) * fs->nBuckets); 
+    locks = (pthread_rwlock_t*) malloc(sizeof(pthread_rwlock_t) * fs->nBuckets);
     if(!locks) {
         perror("failed to allocate locks");
         exit(EXIT_FAILURE);
@@ -61,7 +61,7 @@ void destroy_locks(tecnicofs *fs) {
     for(; i < fs->nBuckets; i++) {
         if(pthread_rwlock_destroy(&locks[i])) exit(EXIT_FAILURE);
     }
-    
+
     free(locks);
 
     #endif
@@ -69,10 +69,10 @@ void destroy_locks(tecnicofs *fs) {
 
 
 
-int obtainNewInumber(tecnicofs *fs) {
+/*int obtainNewInumber(tecnicofs *fs) {
 	int newInumber = ++(fs->nextINumber);
 	return newInumber;
-}
+}*/
 
 tecnicofs* new_tecnicofs(int n_buckets) {
 	tecnicofs *fs = (tecnicofs*) malloc(sizeof(tecnicofs));
@@ -91,7 +91,7 @@ tecnicofs* new_tecnicofs(int n_buckets) {
 
 	for(int i = 0; i < fs->nBuckets; i++) fs->bstRoot[i] = NULL;
 
-	fs->nextINumber = 0;
+  inode_table_init();
 	return fs;
 }
 
@@ -102,7 +102,8 @@ void free_tecnicofs(tecnicofs *fs) {
 	for(i = 0; i < fs->nBuckets; i++) {
 		free_tree(fs->bstRoot[i]);
 	}
-	
+
+  inode_table_destroy();
 	free(fs->bstRoot);
 	free(fs);
 }
@@ -110,6 +111,7 @@ void free_tecnicofs(tecnicofs *fs) {
 
 
 void create(tecnicofs *fs, char *name, int inumber, int i) {
+
 	fs->bstRoot[i] = insert(fs->bstRoot[i], name, inumber);
 }
 
@@ -141,13 +143,13 @@ void change_name(tecnicofs *fs, char *oldName, char *newName, int h1) {
 		UNLOCK(&locks[h1]);
 	} else { //h1 != h2
 		if(h1 > h2) { //Dar Lock por ordem decrescente hash de maneira a evitar situacoes de deadlock
-			LOCK(&locks[h1]); 
+			LOCK(&locks[h1]);
 			LOCK(&locks[h2]);
 		} else {
-			LOCK(&locks[h2]); 
+			LOCK(&locks[h2]);
 			LOCK(&locks[h1]);
 		}
-		
+
 		int inumber = lookup(fs, oldName, h1);
 
 		if(inumber && !lookup(fs, newName, h2)) {
