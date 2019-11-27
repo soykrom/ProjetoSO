@@ -34,12 +34,20 @@ int tfsMount(char *address) {
   if(connect(sockfd, (struct sockaddr *) &serv_addr, servlen) < 0)
     exit(TECNICOFS_ERROR_CONNECTION_ERROR);
 
-  return sockfd;
+  return 0;
 }
 
 int tfsUnmount(){
   if(sockfd == 0)
     exit(TECNICOFS_ERROR_NO_OPEN_SESSION);
+
+  char buffer[MAXLINHA];
+  
+  strcpy(buffer, "l\0");
+
+  write(sockfd, buffer, strlen(buffer) + 1);
+
+  read(sockfd, buffer, MAXLINHA + 1);
 
   if(close(sockfd) < 0)
     exit(TECNICOFS_ERROR_OTHER);
@@ -47,12 +55,15 @@ int tfsUnmount(){
   return 0;
 }
 
-int tfsRead(int fd, char *buffer, int len) {
-  int n = read(fd, buffer, len + 1);
-  return n;
-}
+int tfsCreate(char *filename, permission ownerPermissions, permission othersPermissions) {
+  char buffer[MAXLINHA];
+  
+  sprintf(buffer, "%c %s %d %d", 'c', filename, ownerPermissions, othersPermissions);
 
-int tfsWrite(int fd, char *buffer, int len) {
-  int n = write(fd, buffer, len);
+  write(sockfd, buffer, strlen(buffer) + 1);
+
+  int n = read(sockfd, buffer, MAXLINHA + 1);
+
   return n;
+
 }

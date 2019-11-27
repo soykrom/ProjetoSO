@@ -24,9 +24,6 @@
 #define MAX_CONNECTS 10
 #define MAXLINHA 512
 
-//Boolean to know if signal was triggered or not
-int terminated = 1;
-
 //Will contain the number of threads.
 int numberThreads;
 int currentThread = 0;
@@ -34,8 +31,6 @@ int currentThread = 0;
 //Init of the pointer that'll point to the threads.
 pthread_t *threads = NULL;
 
-int numberCommands;
-int headQueue;
 //socket servidor
 int sockfd;
 int sockets[MAX_CONNECTS];
@@ -70,29 +65,6 @@ static void parseArgs (long argc, char* const argv[]) {
     }
 }
 
-int insertCommand(char* data) {
-    //If the queue is full, it waits until it has space.
-
-    strcpy(inputCommands[numberCommands++], data);
-
-    numberCommands = numberCommands % MAX_COMMANDS;
-
-    return 1;
-}
-
-char* removeCommand() {
-    char* command;
-    //If the command is "@", it means the input has already finished.
-    //There's no more commands after that.
-    if(strcmp(inputCommands[headQueue], "@")) {
-
-        command = inputCommands[headQueue++];
-
-        return command;
-    }
-    return NULL;
-}
-
 void errorParse(FILE *fp) {
     fprintf(fp, "Error: command invalid\n");
     //exit(EXIT_FAILURE);
@@ -101,18 +73,30 @@ void errorParse(FILE *fp) {
 void* clientHandler() {
     char buffer[MAXLINHA + 1];
     int socket = sockets[currentThread - 1];
-    int n = 0;
 
-    n = read(socket, buffer, MAXLINHA + 1);
+    char token;
 
-    printf("%s  -  %d\n", buffer, n);
+    while(1) {
+        read(socket, buffer, MAXLINHA);
 
-    strcpy(buffer, "Adeus");
+        token = buffer[0];
 
-    write(socket, buffer, strlen(buffer) + 1);
+        printf("%c\n", token);
+        printf("%s\n", buffer);
+
+        strcpy(buffer, "@");
+
+        write(socket, buffer, strlen(buffer) + 1);
+
+        if(token == 'l') break;
+    }
+
     return NULL;
 }
 
+char* removeCommand() {
+    return "suh";
+}
 void* applyCommands() {
     while(1) {
 
@@ -252,7 +236,7 @@ int main(int argc, char *argv[]) {
     gettimeofday(&start, NULL);
 
     listen(sockfd, MAX_CONNECTS);
-    while(terminated) {
+    for(;;) {
         int client_socket;
 
         client_socket = accept(sockfd, NULL, NULL);
