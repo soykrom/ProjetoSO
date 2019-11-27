@@ -87,7 +87,7 @@ void* clientHandler(void *uid) {
     char name[MAX_INPUT_SIZE], otherInfo[MAX_INPUT_SIZE];
 
     while(1) {
-        read(socket, buffer, MAXLINHA);
+        read(socket, buffer, MAXLINHA + 1);
 
         printf("O que recebi do cliente\n");
         printf("%s\n", buffer);
@@ -106,7 +106,7 @@ void* clientHandler(void *uid) {
 
           create(fs, name, iNumber, pos);
           strcpy(response, "1");
-          write(socket, response, sizeof(buffer) + 1);
+          write(socket, response, strlen(buffer) + 1);
 
           printf("A resposta ao cliente, que deve ser 1\n");
           printf("%s\n", response);
@@ -116,7 +116,7 @@ void* clientHandler(void *uid) {
 
         if(token == 'l') {
           strcpy(response, "1");
-          write(socket, response, sizeof(buffer) + 1);
+          write(socket, response, strlen(buffer) + 1);
           break;
         }
     }
