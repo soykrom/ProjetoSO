@@ -79,7 +79,6 @@ void errorParse(FILE *fp) {
 
 void* clientHandler(void *uid) {
     char buffer[MAXLINHA + 1];
-    char response[3];
     int socket = sockets[currentThread - 1];
     int iNumber;
     long cli_uid = atoi(uid);
@@ -89,34 +88,20 @@ void* clientHandler(void *uid) {
     while(1) {
         read(socket, buffer, MAXLINHA + 1);
 
-        printf("O que recebi do cliente\n");
-        printf("%s\n", buffer);
-
         sscanf(buffer, "%c %s %s", &token, name, otherInfo);
         int pos = hash(name, fs->nBuckets);
-
-        printf("O token que recebi\n");
-        printf("%c\n", token);
 
         if(token == 'c'){
           iNumber = inode_create(cli_uid, atoi(otherInfo)/10, atoi(otherInfo)%10);
 
-          printf("O inumber de um novo ficheiro\n");
-          printf("%d\n", iNumber);
-
           create(fs, name, iNumber, pos);
-          strcpy(response, "1");
-          write(socket, response, strlen(buffer) + 1);
-
-          printf("A resposta ao cliente, que deve ser 1\n");
-          printf("%s\n", response);
+          strcpy(buffer, "1");
+          write(socket, buffer, strlen(buffer) + 1);
         }
-        //printf("%s\n", name);
-        //printf("%s\n", otherInfo);
 
         if(token == 'l') {
-          strcpy(response, "1");
-          write(socket, response, strlen(buffer) + 1);
+          strcpy(buffer, "1");
+          write(socket, buffer, strlen(buffer) + 1);
           break;
         }
     }

@@ -58,15 +58,12 @@ int tfsUnmount(){
 
 int tfsCreate(char *filename, permission ownerPermissions, permission othersPermissions) {
   char buffer[MAXLINHA];
-  int n;
 
   sprintf(buffer, "c %s %d%d", filename, ownerPermissions, othersPermissions);
 
   write(sockfd, buffer, strlen(buffer) + 1);
-  printf("%s\n",buffer);
-  n = read(sockfd, buffer, MAXLINHA + 1);
-  printf("%s\n", buffer);
-  printf("%d\n", n);
+
+  read(sockfd, buffer, MAXLINHA + 1);
 
   if(atoi(buffer) == 1) return 0;
   else return TECNICOFS_ERROR_FILE_ALREADY_EXISTS;
