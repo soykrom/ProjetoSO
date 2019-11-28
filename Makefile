@@ -42,10 +42,17 @@ clean-outputs:
 clean-all: clean clean-outputs
 
 
-#run: all jog clean
+run: all jog clean
 
-#jog:
-#	./tecnicofs-rwlock inputs/test2.txt outputs/test3-rwlock.txt 4 5
+jog:
+	./server-api /tmp/socket.unix.stream outputs/test1.txt 1 
+
+runClient: client
+	./client /tmp/socket.unix.stream
+
+client:
+	gcc client-api.c tecnicofs-client-api.c -o client
+	
 
 #runt: all
 #	./runTests.sh inputs/ outputs/ 4 4

@@ -14,10 +14,12 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <signal.h>
+#include <errno.h>
 #include <sys/un.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include "fs.h"
+#include "lib/inodes.h"
 #include "macros.h"
 
 #define MAX_COMMANDS 10
@@ -45,17 +47,16 @@ char inputCommands[MAX_COMMANDS][MAX_INPUT_SIZE];
 void signalHandler() {
     printf("\nTerminating\n");
 
-    close(sockfd);
-    for(int  i = 0; i < numberThreads; i++) {
-        if(pthread_join(threads[i], NULL)) {
-            perror("Erro ao dar join das threads");
-            exit(EXIT_FAILURE);
-        }
-    }
+    if(close(sockfd) != 0)
+        exit(EXIT_FAILURE);
+    fprintf(fpO, "Hello\n");
+
     print_tecnicofs_tree(fpO, fs);
 
     free_tecnicofs(fs);
     free(threads);
+
+    inode_table_destroy();
 
     exit(EXIT_SUCCESS);
 }
@@ -79,46 +80,72 @@ void errorParse(FILE *fp) {
 
 void* clientHandler(void *uid) {
     char buffer[MAXLINHA + 1];
-    char response[3];
     int socket = sockets[currentThread - 1];
     int iNumber;
+    int n;
     long cli_uid = atoi(uid);
     char token;
+    int pos = 0;
     char name[MAX_INPUT_SIZE], otherInfo[MAX_INPUT_SIZE];
 
     while(1) {
-        read(socket, buffer, MAXLINHA + 1);
-
-        printf("O que recebi do cliente\n");
-        printf("%s\n", buffer);
+        if(read(socket, buffer, MAXLINHA + 1) < 0)
+            exit(EXIT_FAILURE);
 
         sscanf(buffer, "%c %s %s", &token, name, otherInfo);
-        int pos = hash(name, fs->nBuckets);
 
-        printf("O token que recebi\n");
-        printf("%c\n", token);
+        switch(token) {
+            case 'c':
+                LOCK(&locks[pos]);
 
-        if(token == 'c'){
-          iNumber = inode_create(cli_uid, atoi(otherInfo)/10, atoi(otherInfo)%10);
+                iNumber = inode_create(cli_uid, atoi(otherInfo)/10, atoi(otherInfo)%10);
 
-          printf("O inumber de um novo ficheiro\n");
-          printf("%d\n", iNumber);
+                printf("O inumber de um novo ficheiro\n");
+                printf("%d\n", iNumber);
 
-          create(fs, name, iNumber, pos);
-          strcpy(response, "1");
-          write(socket, response, strlen(buffer) + 1);
+                create(fs, name, iNumber, pos);
 
-          printf("A resposta ao cliente, que deve ser 1\n");
-          printf("%s\n", response);
+                strcpy(buffer, "1");
+
+                n = strlen(buffer) + 1;
+                if(write(socket, buffer, n) != n)
+                    exit(EXIT_FAILURE);
+
+                printf("A resposta ao cliente, que deve ser 1\n");
+                printf("%s\n", buffer);
+
+                UNLOCK(&locks[pos]);
+
+                break;
+            case 'd':
+                LOCK(&locks[pos]);
+                
+                iNumber = lookup(fs, name, pos);
+
+                delete(fs, name, pos);
+                inode_delete(iNumber);
+
+                printf("O inumber do ficheiro\n");
+                printf("%d\n", iNumber);
+
+                strcpy(buffer, "1");
+
+                n = strlen(buffer) + 1;
+                if(write(socket, buffer, n) != n)
+                    exit(EXIT_FAILURE);
+
+                UNLOCK(&locks[pos]);
+
+            case 'e':
+                strcpy(buffer, "1");
+
+                n = strlen(buffer) + 1;
+                if(write(socket, buffer, n) != n)
+                    exit(EXIT_FAILURE);
+
+                break;
         }
-        //printf("%s\n", name);
-        //printf("%s\n", otherInfo);
 
-        if(token == 'l') {
-          strcpy(response, "1");
-          write(socket, response, strlen(buffer) + 1);
-          break;
-        }
     }
 
     return NULL;
@@ -217,7 +244,7 @@ int main(int argc, char *argv[]) {
     double time;
     int nBuckets;
     int dim_serv;
-    int len_cred;
+    socklen_t len_cred;
     char uid[30];
 
     parseArgs(argc, argv);
@@ -237,6 +264,8 @@ int main(int argc, char *argv[]) {
 
     fs = new_tecnicofs(nBuckets);
 
+    inode_table_init();
+
     create_locks(fs);
 
     numberThreads = MAX_CONNECTS;
@@ -251,7 +280,8 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    unlink(argv[1]);
+    if(unlink(argv[1]) != 0)
+        exit(EXIT_FAILURE);
 
     bzero((char *) &end_serv, sizeof(end_serv));
 
@@ -267,11 +297,17 @@ int main(int argc, char *argv[]) {
     //Will save the current time in 'start'.
     gettimeofday(&start, NULL);
 
-    listen(sockfd, MAX_CONNECTS);
-    for(;;) {
+    if(listen(sockfd, MAX_CONNECTS) != 0)
+        exit(EXIT_FAILURE);
+
+    while(1) {
         int client_socket;
 
         client_socket = accept(sockfd, NULL, NULL);
+        if(errno == EINTR) {
+            printf("EINTR\n");
+            break;
+        }
         if(client_socket < 0) {
             perror("Erro ao criar ligacao dedicada - accept");
             exit(EXIT_FAILURE);
@@ -293,6 +329,8 @@ int main(int argc, char *argv[]) {
         numberThreads = currentThread;
     }
 
+    printf("Hi\n");
+
     //Will save the end time of the the threads' execution.
     gettimeofday(&end, NULL);
 
@@ -300,10 +338,12 @@ int main(int argc, char *argv[]) {
     time = (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_usec - start.tv_usec)/1000000;
     printf("TecnicoFS completed in %0.4f seconds.\n", time);
 
-    print_tecnicofs_tree(fpO, fs);
+    for(int  i = 0; i < numberThreads; i++) {
+        if(pthread_join(threads[i], NULL)) {
+            perror("Erro ao dar join das threads");
+            exit(EXIT_FAILURE);
+        }
+    }
 
-    free_tecnicofs(fs);
-    free(threads);
 
-    exit(EXIT_SUCCESS);
 }

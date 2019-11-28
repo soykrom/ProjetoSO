@@ -16,7 +16,6 @@ typedef struct inode_t {
 	char* fileContent;
 } inode_t;
 
-
 void inode_table_init();
 void inode_table_destroy();
 int inode_create(uid_t owner, permission ownerPerm, permission othersPerm);

@@ -38,22 +38,26 @@ int tfsMount(char *address) {
 }
 
 int tfsUnmount(){
+  int n = 0;
+
   if(sockfd == 0)
     exit(TECNICOFS_ERROR_NO_OPEN_SESSION);
 
   char buffer[MAXLINHA];
 
-  strcpy(buffer, "l");
+  strcpy(buffer, "e");
 
-  write(sockfd, buffer, strlen(buffer) + 1);
+  n = strlen(buffer) + 1;
+  if(write(sockfd, buffer, n) != n) 
+    exit(TECNICOFS_ERROR_OTHER);
 
-  read(sockfd, buffer, MAXLINHA + 1);
+  if(read(sockfd, buffer, MAXLINHA + 1) < 0)
+    exit(TECNICOFS_ERROR_OTHER);
 
-  if(atoi(buffer) == 1){
-    if(close(sockfd) < 0) exit(TECNICOFS_ERROR_OTHER);
-    return 0;
-  }
-  exit(TECNICOFS_ERROR_OTHER);
+  if(atoi(buffer) != 1 && close(sockfd) < 0)
+    exit(TECNICOFS_ERROR_OTHER);
+
+  return 0;
 }
 
 int tfsCreate(char *filename, permission ownerPermissions, permission othersPermissions) {
@@ -62,12 +66,35 @@ int tfsCreate(char *filename, permission ownerPermissions, permission othersPerm
 
   sprintf(buffer, "c %s %d%d", filename, ownerPermissions, othersPermissions);
 
-  write(sockfd, buffer, strlen(buffer) + 1);
-  printf("%s\n",buffer);
-  n = read(sockfd, buffer, MAXLINHA + 1);
-  printf("%s\n", buffer);
-  printf("%d\n", n);
+  n = strlen(buffer) + 1;
 
-  if(atoi(buffer) == 1) return 0;
-  else return TECNICOFS_ERROR_FILE_ALREADY_EXISTS;
+  if(write(sockfd, buffer, n) != n)
+    exit(TECNICOFS_ERROR_OTHER);
+
+  if(read(sockfd, buffer, MAXLINHA + 1) < 0)
+    exit(TECNICOFS_ERROR_OTHER);
+
+  if(atoi(buffer) == 1) 
+    return 0;
+  
+  return TECNICOFS_ERROR_FILE_ALREADY_EXISTS;
+}
+
+int tfsDelete(char *filename) {
+  char buffer[MAXLINHA];
+  int n;
+
+  sprintf(buffer, "d %s", filename);
+
+  n = strlen(buffer) + 1;
+  if(write(sockfd, buffer, n) != n)
+    exit(TECNICOFS_ERROR_OTHER);
+
+  if(read(sockfd, buffer, MAXLINHA + 1) < 0)
+    exit(TECNICOFS_ERROR_OTHER);
+
+  if(atoi(buffer) == 1)
+    return 0;
+
+  return TECNICOFS_ERROR_PERMISSION_DENIED;    
 }

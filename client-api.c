@@ -12,10 +12,11 @@ int main(int argc, char *argv[]) {
 
 	tfsMount(argv[1]);
 
-	if(tfsCreate("hi", 2, 1) == 0) printf("fixe\n");
-	if(tfsCreate("hello", 2, 1) == 0) printf("mega fixe\n");
-	if(tfsCreate("gay", 2, 1) == 0) printf("se leres isto es gay\n");
-
+	tfsCreate("hi", 2, 1);
+	tfsCreate("hello", 2, 1);
+	tfsCreate("gay", 2, 1);
+	tfsDelete("hello");
+	
 	tfsUnmount();
 
 	return 0;
