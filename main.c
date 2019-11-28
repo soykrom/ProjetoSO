@@ -94,6 +94,7 @@ void* clientHandler(void *uid) {
 
         sscanf(buffer, "%c %s %s", &token, name, otherInfo);
 
+
         switch(token) {
             case 'c':
                 LOCK(&locks[pos]);

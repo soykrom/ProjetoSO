@@ -62,7 +62,6 @@ int tfsUnmount(){
 
 int tfsCreate(char *filename, permission ownerPermissions, permission othersPermissions) {
   char buffer[MAXLINHA];
-  int n;
 
   sprintf(buffer, "c %s %d%d", filename, ownerPermissions, othersPermissions);
 
@@ -73,6 +72,7 @@ int tfsCreate(char *filename, permission ownerPermissions, permission othersPerm
 
   if(read(sockfd, buffer, MAXLINHA + 1) < 0)
     exit(TECNICOFS_ERROR_OTHER);
+
 
   if(atoi(buffer) == 1) 
     return 0;
