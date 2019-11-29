@@ -39,33 +39,24 @@ pthread_t *threads = NULL;
 int sockfd;
 int sockets[MAX_CONNECTS];
 struct sockaddr_un end_serv;
+int closed;
 
 typedef struct openFiles{
   int iNumber;
   uid_t owner;
   permission ownerPermissions;
   permission othersPermissions;
-}openFiles;
+} openFiles;
 
 FILE *fpO;
 tecnicofs *fs;
 char inputCommands[MAX_COMMANDS][MAX_INPUT_SIZE];
 
 void signalHandler() {
-    printf("\nTerminating\n");
-
     if(close(sockfd) != 0)
         exit(EXIT_FAILURE);
-    fprintf(fpO, "Hello\n");
 
-    print_tecnicofs_tree(fpO, fs);
-
-    free_tecnicofs(fs);
-    free(threads);
-
-    inode_table_destroy();
-
-    exit(EXIT_SUCCESS);
+    closed = 1;
 }
 
 static void displayUsage (const char* appName) {
@@ -119,9 +110,6 @@ void* clientHandler(void *uid) {
 
                 iNumber = inode_create(cli_uid, atoi(otherInfo)/10, atoi(otherInfo)%10);
 
-                printf("O inumber de um novo ficheiro\n");
-                printf("%d\n", iNumber);
-
                 create(fs, name, iNumber, pos);
 
                 strcpy(buffer, "1");
@@ -129,9 +117,6 @@ void* clientHandler(void *uid) {
                 n = strlen(buffer) + 1;
                 if(write(socket, buffer, n) != n)
                     exit(EXIT_FAILURE);
-
-                //printf("A resposta ao cliente, que deve ser 1\n");
-                //printf("%s\n", buffer);
 
                 UNLOCK(&locks[pos]);
 
@@ -142,7 +127,6 @@ void* clientHandler(void *uid) {
 
                 strcpy(buffer, "1");
 
-                printf("%s %s\n", name, otherInfo);
                 n = strlen(buffer) + 1;
                 if(write(socket, buffer, n) != n)
                     exit(EXIT_FAILURE);
@@ -156,9 +140,6 @@ void* clientHandler(void *uid) {
 
                 delete(fs, name, pos);
                 inode_delete(iNumber);
-
-                printf("O inumber do ficheiro a apagar:\n");
-                printf("%d\n", iNumber);
 
                 strcpy(buffer, "1");
 
@@ -267,85 +248,13 @@ void* clientHandler(void *uid) {
                 if(write(socket, buffer, n) != n)
                     exit(EXIT_FAILURE);
 
-                break;
+                return NULL;
         }
 
     }
 
     return NULL;
 }
-
-char* removeCommand() {
-    return "suh";
-}
-/*void* applyCommands() {
-    while(1) {
-
-        LOCK(&mLock);
-        const char* command = removeCommand();
-
-        //After a thread enters this condition, all of them will enter and exit the function.
-        if (command == NULL) {
-            UNLOCK(&mLock);
-            return NULL;
-        }
-
-        char token;
-        char name[MAX_INPUT_SIZE], newName[MAX_INPUT_SIZE];
-        int numTokens = sscanf(command, "%c %s %s", &token, name, newName);
-        int iNumber;
-
-        //If the command is 'c', the iNumber is saved in order to prevent mixing up.
-        if(token == 'c') iNumber = obtainNewInumber(fs);
-
-        UNLOCK(&mLock);
-
-
-        if ((numTokens != 2 && token == 'r') && (token == 'r' && numTokens != 3)) {
-            fprintf(stderr, "Error: invalid command in Queue\n");
-            exit(EXIT_FAILURE);
-        }
-
-        int searchResult;
-        int pos = hash(name, fs->nBuckets);
-
-        switch (token) {
-            case 'c':
-                LOCK(&locks[pos]);
-
-                create(fs, name, iNumber, pos);
-
-                UNLOCK(&locks[pos]);
-                break;
-            case 'l':
-                RD_LOCK(&locks[pos]);
-
-                searchResult = lookup(fs, name, pos);
-                if(!searchResult)
-                    printf("%s not found\n", name);
-                else
-                    printf("%s found with inumber %d\n", name, searchResult);
-
-                UNLOCK(&locks[pos]);
-                break;
-            case 'd':
-                LOCK(&locks[pos]);
-
-                delete(fs, name, pos);
-
-                UNLOCK(&locks[pos]);
-                break;
-            case 'r':
-                change_name(fs, name, newName, pos);
-
-                break;
-            default: {  error
-                fprintf(stderr, "Error: command to apply\n");
-                exit(EXIT_FAILURE);
-            }
-        }
-    }
-}*/
 
 FILE* openFile(const char *ficheiro, const char *modo) {
     FILE *fp = fopen(ficheiro, modo);
@@ -428,11 +337,9 @@ int main(int argc, char *argv[]) {
         int client_socket;
 
         client_socket = accept(sockfd, NULL, NULL);
-        if(errno == EINTR) {
-            printf("EINTR\n");
-            break;
-        }
         if(client_socket < 0) {
+            if(closed) break;
+
             perror("Erro ao criar ligacao dedicada - accept");
             exit(EXIT_FAILURE);
         }
@@ -453,8 +360,12 @@ int main(int argc, char *argv[]) {
         numberThreads = currentThread;
     }
 
-    printf("Hi\n");
-
+    for(int  i = 0; i < numberThreads; i++) {
+        if(pthread_join(threads[i], NULL)) {
+            perror("Erro ao dar join das threads");
+            exit(EXIT_FAILURE);
+        }
+    }
     //Will save the end time of the the threads' execution.
     gettimeofday(&end, NULL);
 
@@ -462,12 +373,13 @@ int main(int argc, char *argv[]) {
     time = (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_usec - start.tv_usec)/1000000;
     printf("TecnicoFS completed in %0.4f seconds.\n", time);
 
-    for(int  i = 0; i < numberThreads; i++) {
-        if(pthread_join(threads[i], NULL)) {
-            perror("Erro ao dar join das threads");
-            exit(EXIT_FAILURE);
-        }
-    }
+    print_tecnicofs_tree(fpO, fs);
+
+    free_tecnicofs(fs);
+    free(threads);
+
+    inode_table_destroy();
+
 
 
 }
