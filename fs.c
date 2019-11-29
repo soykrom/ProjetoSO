@@ -99,12 +99,10 @@ tecnicofs* new_tecnicofs(int n_buckets) {
 void free_tecnicofs(tecnicofs *fs) {
 	int i;
 
-	destroy_locks(fs);
 	for(i = 0; i < fs->nBuckets; i++) {
 		free_tree(fs->bstRoot[i]);
 	}
 
-  inode_table_destroy();
 	free(fs->bstRoot);
 	free(fs);
 }
