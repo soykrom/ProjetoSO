@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include "lib/inodes.h"
 
 //If the creation of locks is unsuccessful, will exit the program.
 void create_locks(tecnicofs *fs) {
@@ -120,7 +121,7 @@ int lookup(tecnicofs *fs, char *name, int i) {
 
 	if (searchNode) return searchNode->inumber;
 
-	return 0;
+	return -1;
 }
 
 void delete(tecnicofs *fs, char *name, int i) {
@@ -134,8 +135,7 @@ void change_name(tecnicofs *fs, char *oldName, char *newName, int h1) {
 		LOCK(&locks[h1]);
 
 		int inumber = lookup(fs, oldName, h1);
-
-		if(inumber && !lookup(fs, newName, h1)) {
+		if(inumber >= 0 && lookup(fs, newName, h1) == -1) {
 			fs->bstRoot[h1] = remove_item(fs->bstRoot[h1], oldName);
 			fs->bstRoot[h1] = insert(fs->bstRoot[h1], newName, inumber);
 		}
@@ -152,7 +152,7 @@ void change_name(tecnicofs *fs, char *oldName, char *newName, int h1) {
 
 		int inumber = lookup(fs, oldName, h1);
 
-		if(inumber && !lookup(fs, newName, h2)) {
+		if(inumber >= 0 && lookup(fs, newName, h2) == -1) {
 			fs->bstRoot[h1] = remove_item(fs->bstRoot[h1], oldName);
 			fs->bstRoot[h2] = insert(fs->bstRoot[h2], newName, inumber);
 		}

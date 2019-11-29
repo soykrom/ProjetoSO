@@ -16,6 +16,7 @@ int main(int argc, char *argv[]) {
 	tfsCreate("hello", 2, 1);
 	tfsCreate("gay", 2, 1);
 	tfsDelete("hello");
+	tfsRename("hi", "suh");
 	
 	tfsUnmount();
 

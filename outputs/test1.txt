@@ -1,10 +1,4 @@
 Hello
 
-<<<<<<< HEAD
-    gay
-  hi
-=======
-    a
-  c
-    dr
->>>>>>> 0b83ec85f7ed6a7ed68114295401eed8c3450983
+  gay
+    suh

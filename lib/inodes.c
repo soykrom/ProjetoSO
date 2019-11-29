@@ -117,7 +117,7 @@ int inode_delete(int inumber) {
  *           *    len of content read:if successful
  *            *   -1: if an error occurs
  *             */
-int inode_get(int inumber,uid_t *owner, permission *ownerPerm, permission *othersPerm, char* fileContents, int len) {
+int inode_get(int inumber, uid_t *owner, permission *ownerPerm, permission *othersPerm, char* fileContents, int len) {
 	lock_inode_table();
 	if((inumber < 0) || (inumber > INODE_TABLE_SIZE) || (inode_table[inumber].owner == FREE_INODE)) {
 		printf("inode_getValues: invalid inumber %d\n", inumber);

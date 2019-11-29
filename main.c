@@ -94,10 +94,10 @@ void* clientHandler(void *uid) {
 
         sscanf(buffer, "%c %s %s", &token, name, otherInfo);
 
-
         switch(token) {
             case 'c':
                 LOCK(&locks[pos]);
+                //Validate request
 
                 iNumber = inode_create(cli_uid, atoi(otherInfo)/10, atoi(otherInfo)%10);
 
@@ -118,10 +118,23 @@ void* clientHandler(void *uid) {
                 UNLOCK(&locks[pos]);
 
                 break;
+            case 'r':
+                //Validate request
+                change_name(fs, name, otherInfo, pos);
+
+                strcpy(buffer, "1");
+
+                printf("%s %s\n", name, otherInfo);
+                n = strlen(buffer) + 1;
+                if(write(socket, buffer, n) != n)
+                    exit(EXIT_FAILURE);
+                break;
+
             case 'd':
                 LOCK(&locks[pos]);
                 
                 iNumber = lookup(fs, name, pos);
+                //Validate request
 
                 delete(fs, name, pos);
                 inode_delete(iNumber);
@@ -136,7 +149,7 @@ void* clientHandler(void *uid) {
                     exit(EXIT_FAILURE);
 
                 UNLOCK(&locks[pos]);
-
+                break;
             case 'e':
                 strcpy(buffer, "1");
 
