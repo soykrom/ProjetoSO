@@ -86,17 +86,17 @@ void errorParse(FILE *fp) {
 }
 void openFilesInit(openFiles UserOpenFiles[]){
   for(int i = 0; i < MAX_OPEN_FILES; i++){
-    UserOpenFiles[i].iNumber = -1;
-    UserOpenFiles[i].owner = -1;
-    UserOpenFiles[i].ownerPermissions = -1;
-    UserOpenFiles[i].othersPermissions = -1;
+    UserOpenFiles[i].iNumber = -2;
+    UserOpenFiles[i].owner = -2;
+    UserOpenFiles[i].ownerPermissions = -2;
+    UserOpenFiles[i].othersPermissions = -2;
   }
 }
 
 void* clientHandler(void *uid) {
     char buffer[MAXLINHA + 1];
     int socket = sockets[currentThread - 1];
-    int iNumber, n, fd;
+    int iNumber, n, fd, fileFound = 0;
     int currentOpenFiles = 0;
     uid_t cli_uid = atoi(uid);
     char token;
@@ -130,8 +130,8 @@ void* clientHandler(void *uid) {
                 if(write(socket, buffer, n) != n)
                     exit(EXIT_FAILURE);
 
-                printf("A resposta ao cliente, que deve ser 1\n");
-                printf("%s\n", buffer);
+                //printf("A resposta ao cliente, que deve ser 1\n");
+                //printf("%s\n", buffer);
 
                 UNLOCK(&locks[pos]);
 
@@ -157,7 +157,7 @@ void* clientHandler(void *uid) {
                 delete(fs, name, pos);
                 inode_delete(iNumber);
 
-                printf("O inumber do ficheiro\n");
+                printf("O inumber do ficheiro a apagar:\n");
                 printf("%d\n", iNumber);
 
                 strcpy(buffer, "1");
@@ -170,31 +170,40 @@ void* clientHandler(void *uid) {
                 break;
             case 'o':
                 if(currentOpenFiles == MAX_OPEN_FILES){
+                  printf("Max open files\n");
                   strcpy(buffer, "-7");
                   write(socket, buffer, strlen(buffer) + 1);
                   break;
                 }
                 iNumber = lookup(fs, name, pos);
+                printf("iNumber found:\n");
+                printf("%d\n", iNumber);
                 if(iNumber == -1){
+                  printf("Ficheiro not found\n");
                   strcpy(buffer, "-5");
                   write(socket, buffer, strlen(buffer) + 1);
                   break;
                 }
                 for(int i = 0; i < MAX_OPEN_FILES; i++){
                   if(UserOpenFiles[i].iNumber == iNumber){
+                    printf("ja existe esse ficheiro\n");
                     strcpy(buffer, "-9");
+                    fileFound = 1;
                     write(socket, buffer, strlen(buffer) + 1);
                     break;
                   }
                 }
+                if(fileFound) break;
                 uid_t uid;
                 permission ownerPerm, othersPerm;
                 int perm = atoi(otherInfo);
                 inode_get(iNumber, &uid, &ownerPerm, &othersPerm, NULL, 0);
 
-                if((uid == cli_uid && (perm == RW || perm == ownerPerm)) || (uid != cli_uid && (perm == othersPerm || perm == RW))){
+                //if((uid == cli_uid && ((ownerPerm == RW && (perm == READ || perm == WRITE)))) || (uid != cli_uid && (perm == othersPerm || othersPerm == RW))){
+                if((uid == cli_uid && ((ownerPerm == RW &&(perm == READ|| perm == WRITE)) || perm == ownerPerm)) ||
+                (uid != cli_uid && ((othersPerm == RW &&(perm == READ|| perm == WRITE)) || perm == othersPerm))){
                   for(int i = 0; i < MAX_OPEN_FILES; i++){
-                    if(UserOpenFiles[i].iNumber == -1){
+                    if(UserOpenFiles[i].iNumber == -2){
                       UserOpenFiles[i].iNumber = iNumber;
                       UserOpenFiles[i].owner = uid;
                       UserOpenFiles[i].ownerPermissions = ownerPerm;
@@ -234,6 +243,21 @@ void* clientHandler(void *uid) {
                   write(socket, buffer, strlen(buffer) + 1);
                   break;
                 }
+            case 'x':
+                fd = atoi(name);
+                if(UserOpenFiles[fd].iNumber == -1){
+                  strcpy(buffer, "-5");
+                  write(socket, buffer, strlen(buffer) + 1);
+                  break;
+                }
+                UserOpenFiles[fd].iNumber = -1;
+                UserOpenFiles[fd].owner = -1;
+                UserOpenFiles[fd].ownerPermissions = -1;
+                UserOpenFiles[fd].othersPermissions = -1;
+                --currentOpenFiles;
+                strcpy(buffer, "0");
+                write(socket, buffer, strlen(buffer) + 1);
+                break;
             case 'e':
                 strcpy(buffer, "1");
 

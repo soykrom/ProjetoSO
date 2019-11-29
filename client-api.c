@@ -16,7 +16,7 @@ int main(int argc, char *argv[]) {
 	tfsCreate("hi", READ, WRITE);
 	tfsCreate("hello", RW, WRITE);
 
-	if(tfsOpen("hello", WRITE) == TECNICOFS_ERROR_INVALID_MODE) printf("pretty good\n");
+	if(tfsOpen("hello", NONE) == TECNICOFS_ERROR_INVALID_MODE) printf("pretty good\n");
 	if(tfsOpen("hello", READ) == 0) printf("also good\n");
 
 	if(tfsOpen("hi", READ) == 1) printf("my peepee is hard\n");

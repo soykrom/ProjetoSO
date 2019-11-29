@@ -136,6 +136,22 @@ int tfsOpen(char *filename, permission mode){
   return atoi(buffer);
 }
 
+int tfsClose(int fd){
+  char buffer[MAXLINHA];
+  int n;
+
+  sprintf(buffer, "x %d", fd);
+
+  n = strlen(buffer) + 1;
+  if(write(sockfd, buffer, n) != n)
+    exit(TECNICOFS_ERROR_OTHER);
+
+  if(read(sockfd, buffer, MAXLINHA + 1) < 0)
+    exit(TECNICOFS_ERROR_OTHER);
+
+  return atoi(buffer);
+}
+
 int tfsWrite(int fd, char *buffer, int len){
   char mens[MAXLINHA];
 
