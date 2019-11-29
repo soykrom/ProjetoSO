@@ -39,7 +39,6 @@ pthread_t *threads = NULL;
 int sockfd;
 int sockets[MAX_CONNECTS];
 struct sockaddr_un end_serv;
-struct ucred client_cred;
 
 typedef struct openFiles{
   int iNumber;
@@ -97,10 +96,9 @@ void openFilesInit(openFiles UserOpenFiles[]){
 void* clientHandler(void *uid) {
     char buffer[MAXLINHA + 1];
     int socket = sockets[currentThread - 1];
-    int iNumber;
-    int n;
+    int iNumber, n, fd;
     int currentOpenFiles = 0;
-    long cli_uid = atoi(uid);
+    uid_t cli_uid = atoi(uid);
     char token;
     int pos = 0;
     char name[MAX_INPUT_SIZE], otherInfo[MAX_INPUT_SIZE];
@@ -194,17 +192,18 @@ void* clientHandler(void *uid) {
                 int perm = atoi(otherInfo);
                 inode_get(iNumber, &uid, &ownerPerm, &othersPerm, NULL, 0);
 
-                if((uid == cli_uid && perm == ownerPerm) || (uid != cli_uid && perm == othersPerm)){
+                if((uid == cli_uid && (perm == RW || perm == ownerPerm)) || (uid != cli_uid && (perm == othersPerm || perm == RW))){
                   for(int i = 0; i < MAX_OPEN_FILES; i++){
                     if(UserOpenFiles[i].iNumber == -1){
                       UserOpenFiles[i].iNumber = iNumber;
                       UserOpenFiles[i].owner = uid;
                       UserOpenFiles[i].ownerPermissions = ownerPerm;
                       UserOpenFiles[i].othersPermissions = othersPerm;
-                      strcpy(buffer, "1");
+                      sprintf(buffer, "%d", i);
                       write(socket, buffer, strlen(buffer) + 1);
                       printf("O iNumber do ficheiro aberto:\n");
                       printf("%d\n", UserOpenFiles[i].iNumber);
+                      ++currentOpenFiles;
                       break;
                     }
                   }
@@ -215,7 +214,26 @@ void* clientHandler(void *uid) {
                   write(socket, buffer, strlen(buffer) + 1);
                   break;
                 }
-
+            case 'w':
+                fd = atoi(name);
+                if(UserOpenFiles[fd].iNumber == -1){
+                  strcpy(buffer, "-8");
+                  write(socket, buffer, strlen(buffer) + 1);
+                  break;
+                }
+                if((UserOpenFiles[fd].owner == cli_uid && (UserOpenFiles[fd].ownerPermissions == WRITE || UserOpenFiles[fd].ownerPermissions == RW)) ||
+                (UserOpenFiles[fd].owner != cli_uid && (UserOpenFiles[fd].othersPermissions == WRITE || UserOpenFiles[fd].othersPermissions == RW))){
+                  if(inode_set(UserOpenFiles[fd].iNumber, otherInfo, strlen(otherInfo)) != 0)
+                    exit(EXIT_FAILURE);
+                  strcpy(buffer, "0");
+                  write(socket, buffer, strlen(buffer) + 1);
+                  break;
+                }
+                else{
+                  strcpy(buffer, "-10");
+                  write(socket, buffer, strlen(buffer) + 1);
+                  break;
+                }
             case 'e':
                 strcpy(buffer, "1");
 
@@ -321,6 +339,7 @@ FILE* openFile(const char *ficheiro, const char *modo) {
 int main(int argc, char *argv[]) {
     //Creation of the time variables.
     struct timeval start, end;
+    struct ucred client_cred;
     double time;
     int nBuckets;
     int dim_serv;

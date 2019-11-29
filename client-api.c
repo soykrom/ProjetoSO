@@ -11,15 +11,19 @@ int main(int argc, char *argv[]) {
 
 	tfsMount(argv[1]);
 
-	if(tfsOpen("hello", 2) == TECNICOFS_ERROR_FILE_NOT_FOUND) printf("good\n");
+	if(tfsOpen("hello", READ) == TECNICOFS_ERROR_FILE_NOT_FOUND) printf("good\n");
 
-	tfsCreate("hi", 2, 1);
-	tfsCreate("hello", 2, 1);
+	tfsCreate("hi", READ, WRITE);
+	tfsCreate("hello", RW, WRITE);
 
-	if(tfsOpen("hello", 1) == TECNICOFS_ERROR_INVALID_MODE) printf("pretty good\n");
-	if(tfsOpen("hello", 2) == 0) printf("also good\n");
+	if(tfsOpen("hello", WRITE) == TECNICOFS_ERROR_INVALID_MODE) printf("pretty good\n");
+	if(tfsOpen("hello", READ) == 0) printf("also good\n");
 
-	tfsCreate("gay", 2, 1);
+	if(tfsOpen("hi", READ) == 1) printf("my peepee is hard\n");
+
+	if(tfsWrite(0, "gucci", 5) == 0) printf("pls work\n");
+
+	tfsCreate("gay", READ, 1);
 	tfsDelete("hello");
 	tfsRename("hi", "suh");
 
