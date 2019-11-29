@@ -132,7 +132,7 @@ int tfsOpen(char *filename, permission mode){
 
   if(read(sockfd, buffer, MAXLINHA + 1) < 0)
     exit(TECNICOFS_ERROR_OTHER);
-
+    
   return atoi(buffer);
 }
 

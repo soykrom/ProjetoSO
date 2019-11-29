@@ -209,9 +209,10 @@ void* clientHandler(void *uid) {
                       UserOpenFiles[i].ownerPermissions = ownerPerm;
                       UserOpenFiles[i].othersPermissions = othersPerm;
                       sprintf(buffer, "%d", i);
-                      write(socket, buffer, strlen(buffer) + 1);
                       printf("O iNumber do ficheiro aberto:\n");
                       printf("%d\n", UserOpenFiles[i].iNumber);
+                      printf("A posicao na tabela: %d\n", i);
+                      write(socket, buffer, strlen(buffer) + 1);
                       ++currentOpenFiles;
                       break;
                     }
@@ -220,6 +221,7 @@ void* clientHandler(void *uid) {
 
                 else{
                   strcpy(buffer, "-10");
+                  printf("Invalid mode\n");
                   write(socket, buffer, strlen(buffer) + 1);
                   break;
                 }
