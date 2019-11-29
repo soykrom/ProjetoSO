@@ -48,7 +48,6 @@ typedef struct openFiles{
   permission othersPermissions;
 }openFiles;
 
-
 FILE *fpO;
 tecnicofs *fs;
 char inputCommands[MAX_COMMANDS][MAX_INPUT_SIZE];

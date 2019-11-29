@@ -1,6 +1,5 @@
 #include "tecnicofs-client-api.h"
 #include <stdio.h>
-#include "unix.h"
 
 #define MAXLINHA 512
 
