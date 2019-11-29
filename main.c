@@ -26,6 +26,7 @@
 #define MAX_INPUT_SIZE 100
 #define MAX_CONNECTS 10
 #define MAXLINHA 512
+#define MAX_OPEN_FILES 5
 
 //Will contain the number of threads.
 int numberThreads;
@@ -39,6 +40,14 @@ int sockfd;
 int sockets[MAX_CONNECTS];
 struct sockaddr_un end_serv;
 struct ucred client_cred;
+
+typedef struct openFiles{
+  int iNumber;
+  uid_t owner;
+  permission ownerPermissions;
+  permission othersPermissions;
+}openFiles;
+
 
 FILE *fpO;
 tecnicofs *fs;
@@ -77,23 +86,35 @@ void errorParse(FILE *fp) {
     fprintf(fp, "Error: command invalid\n");
     //exit(EXIT_FAILURE);
 }
+void openFilesInit(openFiles UserOpenFiles[]){
+  for(int i = 0; i < MAX_OPEN_FILES; i++){
+    UserOpenFiles[i].iNumber = -1;
+    UserOpenFiles[i].owner = -1;
+    UserOpenFiles[i].ownerPermissions = -1;
+    UserOpenFiles[i].othersPermissions = -1;
+  }
+}
 
 void* clientHandler(void *uid) {
     char buffer[MAXLINHA + 1];
     int socket = sockets[currentThread - 1];
     int iNumber;
     int n;
+    int currentOpenFiles = 0;
     long cli_uid = atoi(uid);
     char token;
     int pos = 0;
     char name[MAX_INPUT_SIZE], otherInfo[MAX_INPUT_SIZE];
+    openFiles UserOpenFiles[MAX_OPEN_FILES];
+
+    openFilesInit(UserOpenFiles);
+
 
     while(1) {
         if(read(socket, buffer, MAXLINHA + 1) < 0)
             exit(EXIT_FAILURE);
 
         sscanf(buffer, "%c %s %s", &token, name, otherInfo);
-
         switch(token) {
             case 'c':
                 LOCK(&locks[pos]);
@@ -132,7 +153,7 @@ void* clientHandler(void *uid) {
 
             case 'd':
                 LOCK(&locks[pos]);
-                
+
                 iNumber = lookup(fs, name, pos);
                 //Validate request
 
@@ -150,6 +171,52 @@ void* clientHandler(void *uid) {
 
                 UNLOCK(&locks[pos]);
                 break;
+            case 'o':
+                if(currentOpenFiles == MAX_OPEN_FILES){
+                  strcpy(buffer, "-7");
+                  write(socket, buffer, strlen(buffer) + 1);
+                  break;
+                }
+                iNumber = lookup(fs, name, pos);
+                if(iNumber == -1){
+                  strcpy(buffer, "-5");
+                  write(socket, buffer, strlen(buffer) + 1);
+                  break;
+                }
+                for(int i = 0; i < MAX_OPEN_FILES; i++){
+                  if(UserOpenFiles[i].iNumber == iNumber){
+                    strcpy(buffer, "-9");
+                    write(socket, buffer, strlen(buffer) + 1);
+                    break;
+                  }
+                }
+                uid_t uid;
+                permission ownerPerm, othersPerm;
+                int perm = atoi(otherInfo);
+                inode_get(iNumber, &uid, &ownerPerm, &othersPerm, NULL, 0);
+
+                if((uid == cli_uid && perm == ownerPerm) || (uid != cli_uid && perm == othersPerm)){
+                  for(int i = 0; i < MAX_OPEN_FILES; i++){
+                    if(UserOpenFiles[i].iNumber == -1){
+                      UserOpenFiles[i].iNumber = iNumber;
+                      UserOpenFiles[i].owner = uid;
+                      UserOpenFiles[i].ownerPermissions = ownerPerm;
+                      UserOpenFiles[i].othersPermissions = othersPerm;
+                      strcpy(buffer, "1");
+                      write(socket, buffer, strlen(buffer) + 1);
+                      printf("O iNumber do ficheiro aberto:\n");
+                      printf("%d\n", UserOpenFiles[i].iNumber);
+                      break;
+                    }
+                  }
+                }
+
+                else{
+                  strcpy(buffer, "-10");
+                  write(socket, buffer, strlen(buffer) + 1);
+                  break;
+                }
+
             case 'e':
                 strcpy(buffer, "1");
 
@@ -294,8 +361,7 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    if(unlink(argv[1]) != 0)
-        exit(EXIT_FAILURE);
+    unlink(argv[1]);
 
     bzero((char *) &end_serv, sizeof(end_serv));
 
