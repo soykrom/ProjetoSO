@@ -68,13 +68,6 @@ void destroy_locks(tecnicofs *fs) {
     #endif
 }
 
-
-
-/*int obtainNewInumber(tecnicofs *fs) {
-	int newInumber = ++(fs->nextINumber);
-	return newInumber;
-}*/
-
 tecnicofs* new_tecnicofs(int n_buckets) {
 	tecnicofs *fs = (tecnicofs*) malloc(sizeof(tecnicofs));
 

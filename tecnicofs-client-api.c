@@ -75,11 +75,7 @@ int tfsCreate(char *filename, permission ownerPermissions, permission othersPerm
   if(read(sockfd, buffer, MAXLINHA + 1) < 0)
     exit(TECNICOFS_ERROR_OTHER);
 
-
-  if(atoi(buffer) == 1)
-    return 0;
-
-  return TECNICOFS_ERROR_FILE_ALREADY_EXISTS;
+  return atoi(buffer);
 }
 
 int tfsDelete(char *filename) {
@@ -95,10 +91,9 @@ int tfsDelete(char *filename) {
   if(read(sockfd, buffer, MAXLINHA + 1) < 0)
     exit(TECNICOFS_ERROR_OTHER);
 
-  if(atoi(buffer) == 1)
-    return 0;
-
-  return TECNICOFS_ERROR_PERMISSION_DENIED;
+  printf("%d\n", atoi(buffer));
+  
+  return atoi(buffer);
 }
 
 int tfsRename(char *filenameOld, char *filenameNew) {
@@ -157,9 +152,12 @@ int tfsWrite(int fd, char *buffer, int len){
 
   sprintf(mens, "w %d ", fd);
   strncat(mens, buffer, len);
-  write(sockfd, mens, len);
+  
+  if(write(sockfd, mens, len) != len)
+    exit(TECNICOFS_ERROR_OTHER);
 
-  read(sockfd, buffer, MAXLINHA + 1);
+  if(read(sockfd, buffer, MAXLINHA + 1) < 0)
+    exit(TECNICOFS_ERROR_OTHER);
 
   return atoi(buffer);
 }
