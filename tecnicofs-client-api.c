@@ -92,7 +92,7 @@ int tfsDelete(char *filename) {
     exit(TECNICOFS_ERROR_OTHER);
 
   printf("%d\n", atoi(buffer));
-  
+
   return atoi(buffer);
 }
 
@@ -127,7 +127,7 @@ int tfsOpen(char *filename, permission mode){
 
   if(read(sockfd, buffer, MAXLINHA + 1) < 0)
     exit(TECNICOFS_ERROR_OTHER);
-    
+
   return atoi(buffer);
 }
 
@@ -152,12 +152,31 @@ int tfsWrite(int fd, char *buffer, int len){
 
   sprintf(mens, "w %d ", fd);
   strncat(mens, buffer, len);
-  
-  if(write(sockfd, mens, len) != len)
+  printf("%s\n", mens);
+  write(sockfd, mens, len + 4);
+
+  if(read(sockfd, mens, MAXLINHA + 1) < 0){
+    exit(TECNICOFS_ERROR_OTHER);
+  }
+  return atoi(mens);
+}
+
+int tfsRead(int fd, char *buffer, int len){
+  char mens[MAXLINHA];
+  int n;
+
+  sprintf(mens, "l %d %d", fd, len);
+
+  n = strlen(mens) + 1;
+  if(write(sockfd, mens, n) != n)
     exit(TECNICOFS_ERROR_OTHER);
 
-  if(read(sockfd, buffer, MAXLINHA + 1) < 0)
+  if(read(sockfd, buffer, MAXLINHA + 1) < 0){
     exit(TECNICOFS_ERROR_OTHER);
+  }
 
-  return atoi(buffer);
+  if(atoi(buffer) < 0){
+    return atoi(buffer);
+  }
+  return strlen(buffer);
 }

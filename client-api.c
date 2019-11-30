@@ -8,6 +8,7 @@ int main(int argc, char *argv[]) {
 		printf("Usage: %s sock_path\n", argv[0]);
 		exit(0);
 	}
+	char buffer[10];
 
 	tfsMount(argv[1]);
 
@@ -21,9 +22,12 @@ int main(int argc, char *argv[]) {
 
 	if(tfsOpen("hi", READ) == 1) printf("my peepee is hard\n");
 
-	if(tfsWrite(0, "gucci", 5) == 0) printf("pls work\n");
+	if(tfsWrite(0, "Zekip", 4) == 0) printf("pls work\n");
 
 	tfsCreate("gay", READ, 1);
+	if(tfsRead(0, buffer, 10) == 4) printf("%s\n", buffer);
+	//printf("%s\n", buffer);
+	if(tfsClose(0) == 0) printf("close works\n");
 	tfsDelete("hello");
 	tfsRename("hi", "suh");
 
