@@ -152,8 +152,8 @@ int tfsWrite(int fd, char *buffer, int len){
 
   sprintf(mens, "w %d ", fd);
   strncat(mens, buffer, len);
-  printf("%s\n", mens);
-  write(sockfd, mens, len + 4);
+  
+  write(sockfd, mens, strlen(mens) + 1);
 
   if(read(sockfd, mens, MAXLINHA + 1) < 0){
     exit(TECNICOFS_ERROR_OTHER);

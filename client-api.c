@@ -25,8 +25,7 @@ int main(int argc, char *argv[]) {
 	if(tfsWrite(0, "Zekip", 4) == 0) printf("pls work\n");
 
 	tfsCreate("gay", READ, 1);
-	if(tfsRead(0, buffer, 10) == 4) printf("%s\n", buffer);
-	//printf("%s\n", buffer);
+	if(tfsRead(0, buffer, 10) == 4) printf("Mensage read: %s\n", buffer);
 	if(tfsClose(0) == 0) printf("close works\n");
 	tfsDelete("hello");
 	tfsRename("hi", "suh");

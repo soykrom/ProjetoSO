@@ -276,6 +276,7 @@ void* clientHandler(void *uid) {
                   break;
                 }
 
+                printf("estou no write\n");
                 printf("%s\n", otherInfo);
                 if((UserOpenFiles[fd].owner == cli_uid && (UserOpenFiles[fd].ownerPermissions == WRITE || UserOpenFiles[fd].ownerPermissions == RW)) ||
                 (UserOpenFiles[fd].owner != cli_uid && (UserOpenFiles[fd].othersPermissions == WRITE || UserOpenFiles[fd].othersPermissions == RW))) {
