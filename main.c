@@ -45,9 +45,10 @@ pthread_mutex_t fLock;
 
 typedef struct openFiles{
     int iNumber;
-    uid_t owner;
-    permission ownerPermissions;
-    permission othersPermissions;
+    //uid_t owner;
+    //permission ownerPermissions;
+    //permission othersPermissions;
+    permission currentMode;
 } openFiles;
 
 FILE *fpO;
@@ -81,9 +82,10 @@ void errorParse(FILE *fp) {
 void openFilesInit(openFiles UserOpenFiles[]) {
   for(int i = 0; i < MAX_OPEN_FILES; i++) {
     UserOpenFiles[i].iNumber = -2;
-    UserOpenFiles[i].owner = -2;
-    UserOpenFiles[i].ownerPermissions = -2;
-    UserOpenFiles[i].othersPermissions = -2;
+    //UserOpenFiles[i].owner = -2;
+    //UserOpenFiles[i].ownerPermissions = -2;
+    //UserOpenFiles[i].othersPermissions = -2;
+    UserOpenFiles[i].currentMode = -2;
   }
 
   if(pthread_mutex_init(&fLock, NULL)) exit(EXIT_FAILURE);
@@ -236,14 +238,16 @@ void* clientHandler(void *uid) {
                     for(int i = 0; i < MAX_OPEN_FILES; i++) {
                         if(UserOpenFiles[i].iNumber == -2) {
                             UserOpenFiles[i].iNumber = iNumber;
-                            UserOpenFiles[i].owner = uid;
-                            UserOpenFiles[i].ownerPermissions = ownerPerm;
-                            UserOpenFiles[i].othersPermissions = othersPerm;
+                            //UserOpenFiles[i].owner = uid;
+                            //UserOpenFiles[i].ownerPermissions = ownerPerm;
+                            //UserOpenFiles[i].othersPermissions = othersPerm;
+                            UserOpenFiles[i].currentMode = perm;
 
                             sprintf(buffer, "%d", i);
                             printf("O iNumber do ficheiro aberto:\n");
                             printf("%d\n", UserOpenFiles[i].iNumber);
                             printf("A posicao na tabela: %d\n", i);
+                            printf("Permissao do file: %d\n", UserOpenFiles[i].currentMode);
 
                             n = strlen(buffer) + 1;
                             if(write(socket, buffer, n) != n)
@@ -278,11 +282,9 @@ void* clientHandler(void *uid) {
 
                 printf("estou no write\n");
                 printf("%s\n", otherInfo);
-                if((UserOpenFiles[fd].owner == cli_uid && (UserOpenFiles[fd].ownerPermissions == WRITE || UserOpenFiles[fd].ownerPermissions == RW)) ||
-                (UserOpenFiles[fd].owner != cli_uid && (UserOpenFiles[fd].othersPermissions == WRITE || UserOpenFiles[fd].othersPermissions == RW))) {
+                if(UserOpenFiles[fd].currentMode == RW || UserOpenFiles[fd].currentMode == WRITE) {
                     if(inode_set(UserOpenFiles[fd].iNumber, otherInfo, strlen(otherInfo)) != 0)
                         exit(EXIT_FAILURE);
-
                     strcpy(buffer, "0");
 
                     n = strlen(buffer) + 1;
@@ -311,12 +313,19 @@ void* clientHandler(void *uid) {
                   break;
                 }
 
-                if((UserOpenFiles[fd].owner == cli_uid && (UserOpenFiles[fd].ownerPermissions == READ || UserOpenFiles[fd].ownerPermissions == RW)) ||
-                (UserOpenFiles[fd].owner != cli_uid && (UserOpenFiles[fd].othersPermissions == READ || UserOpenFiles[fd].othersPermissions == RW))) {
-                  n = inode_get(UserOpenFiles[fd].iNumber, NULL, NULL, NULL, buffer, atoi(otherInfo));
+                if(UserOpenFiles[fd].currentMode == RW || UserOpenFiles[fd].currentMode == READ){
+                  n = inode_get(UserOpenFiles[fd].iNumber, NULL, NULL, NULL, buffer, atoi(otherInfo) - 1);
                   printf("%s\n", buffer);
                   printf("%d %lu\n", n, strlen(buffer));
-                  if(n != strlen(buffer)){
+                  if(n == 0){
+                    strcpy(buffer, "");
+
+                    n = strlen(buffer) + 1;
+                    if(write(socket, buffer, n) != n)
+                        exit(EXIT_FAILURE);
+                  }
+                  else if(n != strlen(buffer)){
+                    printf("here's the problem\n");
                     exit(EXIT_FAILURE);
                   }
                   //Acho que aqui não é preciso fazer + 1 porque ja tem o /0.
@@ -348,9 +357,10 @@ void* clientHandler(void *uid) {
 
                 printf("iNumber of the file to close:%d\n", UserOpenFiles[fd].iNumber);
                 UserOpenFiles[fd].iNumber = -2;
-                UserOpenFiles[fd].owner = -2;
-                UserOpenFiles[fd].ownerPermissions = -2;
-                UserOpenFiles[fd].othersPermissions = -2;
+                //UserOpenFiles[fd].owner = -2;
+                //UserOpenFiles[fd].ownerPermissions = -2;
+                //UserOpenFiles[fd].othersPermissions = -2;
+                UserOpenFiles[fd].currentMode = -2;
 
                 --currentOpenFiles;
 
