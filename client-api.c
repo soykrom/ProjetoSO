@@ -22,10 +22,11 @@ int main(int argc, char *argv[]) {
 
 	if(tfsOpen("hi", READ) == 1) printf("my peepee is hard\n");
 
-	if(tfsWrite(0, "Zekip", 4) == 0) printf("pls work\n");
+	if(tfsWrite(0, "Zekip", 5) == TECNICOFS_ERROR_INVALID_MODE) printf("pls work\n");
+
 
 	tfsCreate("gay", READ, 1);
-	if(tfsRead(0, buffer, 10) == 4) printf("Mensage read: %s\n", buffer);
+	if(tfsRead(0, buffer, 4) == 0) printf("Mensage read: %s\n", buffer);
 	if(tfsClose(0) == 0) printf("close works\n");
 	tfsDelete("hello");
 	tfsRename("hi", "suh");
