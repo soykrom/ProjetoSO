@@ -91,8 +91,6 @@ int tfsDelete(char *filename) {
   if(read(sockfd, buffer, MAXLINHA + 1) < 0)
     exit(TECNICOFS_ERROR_OTHER);
 
-  printf("%d\n", atoi(buffer));
-
   return atoi(buffer);
 }
 
@@ -106,13 +104,10 @@ int tfsRename(char *filenameOld, char *filenameNew) {
   if(write(sockfd, buffer, n) != n)
     exit(TECNICOFS_ERROR_OTHER);
 
-    if(read(sockfd, buffer, MAXLINHA + 1) < 0)
-      exit(TECNICOFS_ERROR_OTHER);
+  if(read(sockfd, buffer, MAXLINHA + 1) < 0)
+    exit(TECNICOFS_ERROR_OTHER);
 
-    if(atoi(buffer) == 1)
-      return 0;
-
-    return TECNICOFS_ERROR_FILE_NOT_FOUND;
+  return atoi(buffer);
 }
 
 int tfsOpen(char *filename, permission mode){
@@ -158,6 +153,7 @@ int tfsWrite(int fd, char *buffer, int len){
   if(read(sockfd, mens, MAXLINHA + 1) < 0){
     exit(TECNICOFS_ERROR_OTHER);
   }
+
   return atoi(mens);
 }
 
@@ -178,5 +174,6 @@ int tfsRead(int fd, char *buffer, int len){
   if(atoi(buffer) < 0){
     return atoi(buffer);
   }
+  
   return strlen(buffer);
 }

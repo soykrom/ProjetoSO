@@ -37,7 +37,6 @@ pthread_t *threads = NULL;
 
 //socket servidor
 int sockfd;
-int sockets[MAX_CONNECTS];
 struct sockaddr_un end_serv;
 int closed;
 
@@ -89,16 +88,19 @@ void openFilesInit(openFiles UserOpenFiles[]) {
   if(pthread_mutex_init(&fLock, NULL)) exit(EXIT_FAILURE);
 }
 
-void* clientHandler(void *uid) {
+void* clientHandler(void *arg) {
+    int *args = (int *) arg;
     char buffer[MAXLINHA + 1];
-    int socket = sockets[currentThread - 1];
+    int socket = args[0];
+    uid_t cli_uid = args[1];
     int iNumber, n, fd, fileFound = 0;
     int currentOpenFiles = 0;
-    uid_t cli_uid = atoi(uid);
     char token;
     int pos = 0;
     char name[MAX_INPUT_SIZE], otherInfo[MAX_INPUT_SIZE];
     openFiles UserOpenFiles[MAX_OPEN_FILES];
+    uid_t uid;
+    permission ownerPerm, othersPerm;
 
     openFilesInit(UserOpenFiles);
 
@@ -112,7 +114,6 @@ void* clientHandler(void *uid) {
         switch(token) {
             case 'c':
                 LOCK(&locks[pos]);
-                //Validate request
 
                 if(lookup(fs, name, pos) != -1) {
                     strcpy(buffer, "-4");
@@ -133,7 +134,36 @@ void* clientHandler(void *uid) {
 
                 break;
             case 'r':
-                //Validate request
+                LOCK(&locks[pos]);
+
+                if(lookup(fs, name, pos) == -1) { //file to be renamed doesn't exist
+                    strcpy(buffer, "-5");
+
+                    n = strlen(buffer) + 1;
+                    if(write(socket, buffer, n) != n)
+                        exit(EXIT_FAILURE);
+                    break;
+                } else if(lookup(fs, otherInfo, pos) != -1) { //file with new name already exists
+                    strcpy(buffer, "-4");
+
+                    n = strlen(buffer) + 1;
+                    if(write(socket, buffer, n) != n)
+                        exit(EXIT_FAILURE);
+                    break;
+                }
+
+                inode_get(iNumber, &uid, &ownerPerm, &othersPerm, NULL, 0);
+
+                if(uid != cli_uid) {
+                    strcpy(buffer, "-6");
+
+                    n = strlen(buffer) + 1;
+                    if(write(socket, buffer, n) != n)
+                        exit(EXIT_FAILURE);
+                    
+                    break;
+                }
+
                 change_name(fs, name, otherInfo, pos);
 
                 strcpy(buffer, "0");
@@ -141,6 +171,8 @@ void* clientHandler(void *uid) {
                 n = strlen(buffer) + 1;
                 if(write(socket, buffer, n) != n)
                     exit(EXIT_FAILURE);
+
+                UNLOCK(&locks[pos]);    
                 break;
 
             case 'd':
@@ -155,21 +187,17 @@ void* clientHandler(void *uid) {
                         exit(EXIT_FAILURE);
                     break;
                 }
-                //Validate request
                 pthread_mutex_lock(&fLock);
-                printf("iNumber found:%d\n", iNumber);
 
                 for(int i = 0; i < MAX_OPEN_FILES; i++) {
                     if(UserOpenFiles[i].iNumber == iNumber) {
                         fileFound = 1;
-                        printf("iNumber in table:%d\n", UserOpenFiles[i].iNumber);
                         break;
                     }
                 }
 
                 pthread_mutex_unlock(&fLock);
 
-                printf("Here\n");
                 if(fileFound) {
                     strcpy(buffer, "-9");
                 } else {
@@ -186,7 +214,6 @@ void* clientHandler(void *uid) {
                 break;
             case 'o':
                 if(currentOpenFiles == MAX_OPEN_FILES) {
-                    printf("Max open files\n");
                     strcpy(buffer, "-7");
 
                     n = strlen(buffer) + 1;
@@ -196,11 +223,8 @@ void* clientHandler(void *uid) {
                 }
 
                 iNumber = lookup(fs, name, pos);
-                printf("iNumber found:\n");
-                printf("%d\n", iNumber);
 
                 if(iNumber == -1) {
-                    printf("Ficheiro not found\n");
                     strcpy(buffer, "-5");
 
                     n = strlen(buffer) + 1;
@@ -211,7 +235,6 @@ void* clientHandler(void *uid) {
 
                 for(int i = 0; i < MAX_OPEN_FILES; i++) {
                     if(UserOpenFiles[i].iNumber == iNumber) {
-                        printf("ja existe esse ficheiro\n");
                         strcpy(buffer, "-9");
 
                         fileFound = 1;
@@ -224,13 +247,11 @@ void* clientHandler(void *uid) {
                 }
                 if(fileFound) break;
 
-                uid_t uid;
-                permission ownerPerm, othersPerm;
+
                 int perm = atoi(otherInfo);
 
                 inode_get(iNumber, &uid, &ownerPerm, &othersPerm, NULL, 0);
 
-                //if((uid == cli_uid && ((ownerPerm == RW && (perm == READ || perm == WRITE)))) || (uid != cli_uid && (perm == othersPerm || othersPerm == RW))){
                 if((uid == cli_uid && ((ownerPerm == RW &&(perm == READ|| perm == WRITE)) || perm == ownerPerm)) ||
                 (uid != cli_uid && ((othersPerm == RW &&(perm == READ|| perm == WRITE)) || perm == othersPerm))) {
                     for(int i = 0; i < MAX_OPEN_FILES; i++) {
@@ -241,9 +262,6 @@ void* clientHandler(void *uid) {
                             UserOpenFiles[i].othersPermissions = othersPerm;
 
                             sprintf(buffer, "%d", i);
-                            printf("O iNumber do ficheiro aberto:\n");
-                            printf("%d\n", UserOpenFiles[i].iNumber);
-                            printf("A posicao na tabela: %d\n", i);
 
                             n = strlen(buffer) + 1;
                             if(write(socket, buffer, n) != n)
@@ -256,7 +274,6 @@ void* clientHandler(void *uid) {
                     }
                 } else {
                     strcpy(buffer, "-10");
-                    printf("Invalid mode\n");
 
                     n = strlen(buffer) + 1;
                     if(write(socket, buffer, n) != n)
@@ -276,8 +293,6 @@ void* clientHandler(void *uid) {
                   break;
                 }
 
-                printf("estou no write\n");
-                printf("%s\n", otherInfo);
                 if((UserOpenFiles[fd].owner == cli_uid && (UserOpenFiles[fd].ownerPermissions == WRITE || UserOpenFiles[fd].ownerPermissions == RW)) ||
                 (UserOpenFiles[fd].owner != cli_uid && (UserOpenFiles[fd].othersPermissions == WRITE || UserOpenFiles[fd].othersPermissions == RW))) {
                     if(inode_set(UserOpenFiles[fd].iNumber, otherInfo, strlen(otherInfo)) != 0)
@@ -313,29 +328,27 @@ void* clientHandler(void *uid) {
 
                 if((UserOpenFiles[fd].owner == cli_uid && (UserOpenFiles[fd].ownerPermissions == READ || UserOpenFiles[fd].ownerPermissions == RW)) ||
                 (UserOpenFiles[fd].owner != cli_uid && (UserOpenFiles[fd].othersPermissions == READ || UserOpenFiles[fd].othersPermissions == RW))) {
-                  n = inode_get(UserOpenFiles[fd].iNumber, NULL, NULL, NULL, buffer, atoi(otherInfo));
-                  printf("%s\n", buffer);
-                  printf("%d %lu\n", n, strlen(buffer));
-                  if(n != strlen(buffer)){
-                    exit(EXIT_FAILURE);
-                  }
-                  //Acho que aqui não é preciso fazer + 1 porque ja tem o /0.
-                  n = strlen(buffer) + 1;
-                  if(write(socket, buffer, n) != n)
-                    exit(EXIT_FAILURE);
-                } else {
+                    n = inode_get(UserOpenFiles[fd].iNumber, NULL, NULL, NULL, buffer, atoi(otherInfo) - 1);
 
-                  strcpy(buffer, "-10");
+                    if(n != strlen(buffer)) {
+                        exit(EXIT_FAILURE);
+                    }
 
-                  n = strlen(buffer) + 1;
-                  if(write(socket, buffer, n) != n)
-                      exit(EXIT_FAILURE);
-                }
-                break;
+                    n = strlen(buffer) + 1;
+                    if(write(socket, buffer, n) != n)
+                        exit(EXIT_FAILURE);
+                    } else {
+                        strcpy(buffer, "-10");
+
+                    n = strlen(buffer) + 1;
+                    if(write(socket, buffer, n) != n)
+                        exit(EXIT_FAILURE);
+                    }
+
+                    break;
 
             case 'x':
                 fd = atoi(name);
-                printf("%d\n", fd);
 
                 if(UserOpenFiles[fd].iNumber == -2) {
                     strcpy(buffer, "-5");
@@ -346,7 +359,6 @@ void* clientHandler(void *uid) {
                   break;
                 }
 
-                printf("iNumber of the file to close:%d\n", UserOpenFiles[fd].iNumber);
                 UserOpenFiles[fd].iNumber = -2;
                 UserOpenFiles[fd].owner = -2;
                 UserOpenFiles[fd].ownerPermissions = -2;
@@ -455,6 +467,9 @@ int main(int argc, char *argv[]) {
 
     while(1) {
         int client_socket;
+        int args[2];
+
+        numberThreads = currentThread;
 
         client_socket = accept(sockfd, NULL, NULL);
         if(client_socket < 0) {
@@ -471,13 +486,13 @@ int main(int argc, char *argv[]) {
         }
 
         sprintf(uid, "%d", client_cred.uid);
+        args[0] = client_socket;
+        args[1] = atoi(uid);
 
-        sockets[currentThread] = client_socket;
-        if(pthread_create(&threads[currentThread++], NULL, *clientHandler, uid)) {
+        if(pthread_create(&threads[currentThread++], NULL, *clientHandler, (void*)args)) {
             perror("Erro ao criar thread para atender cliente");
             exit(EXIT_FAILURE);
         }
-        numberThreads = currentThread;
     }
 
     for(int  i = 0; i < numberThreads; i++) {
@@ -486,6 +501,9 @@ int main(int argc, char *argv[]) {
             exit(EXIT_FAILURE);
         }
     }
+    printf("pre print\n");
+    print_tecnicofs_tree(fpO, fs);
+
     //Will save the end time of the the threads' execution.
     gettimeofday(&end, NULL);
 
@@ -493,7 +511,6 @@ int main(int argc, char *argv[]) {
     time = (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_usec - start.tv_usec)/1000000;
     printf("TecnicoFS completed in %0.4f seconds.\n", time);
 
-    print_tecnicofs_tree(fpO, fs);
 
     free_tecnicofs(fs);
     free(threads);

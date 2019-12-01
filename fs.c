@@ -120,44 +120,22 @@ void delete(tecnicofs *fs, char *name, int i) {
 }
 
 void change_name(tecnicofs *fs, char *oldName, char *newName, int h1) {
-	int h2 = hash(newName, fs->nBuckets);
-
-	if(h1 == h2) {
-		LOCK(&locks[h1]);
-
-		int inumber = lookup(fs, oldName, h1);
-		if(inumber >= 0 && lookup(fs, newName, h1) == -1) {
-			fs->bstRoot[h1] = remove_item(fs->bstRoot[h1], oldName);
-			fs->bstRoot[h1] = insert(fs->bstRoot[h1], newName, inumber);
-		}
-
-		UNLOCK(&locks[h1]);
-	} else { //h1 != h2
-		if(h1 > h2) { //Dar Lock por ordem decrescente hash de maneira a evitar situacoes de deadlock
-			LOCK(&locks[h1]);
-			LOCK(&locks[h2]);
-		} else {
-			LOCK(&locks[h2]);
-			LOCK(&locks[h1]);
-		}
-
-		int inumber = lookup(fs, oldName, h1);
-
-		if(inumber >= 0 && lookup(fs, newName, h2) == -1) {
-			fs->bstRoot[h1] = remove_item(fs->bstRoot[h1], oldName);
-			fs->bstRoot[h2] = insert(fs->bstRoot[h2], newName, inumber);
-		}
-
-		UNLOCK(&locks[h1]);
-		UNLOCK(&locks[h2]);
+	int inumber = lookup(fs, oldName, h1);
+	
+	if(inumber >= 0 && lookup(fs, newName, h1) == -1) {
+		fs->bstRoot[h1] = remove_item(fs->bstRoot[h1], oldName);
+		fs->bstRoot[h1] = insert(fs->bstRoot[h1], newName, inumber);
 	}
 }
 
 void print_tecnicofs_tree(FILE *fp, tecnicofs *fs) {
 	int i;
+
+	printf("Inside\n");
 	for(i = 0; i < fs -> nBuckets; i++) {
 		if(!fs->bstRoot[i]) continue;
 
+		printf("Bravo Six going dark\n");
 		print_tree(fp, fs->bstRoot[i]);
 	}
 

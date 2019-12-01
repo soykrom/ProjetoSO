@@ -28,5 +28,7 @@ int main(int argc, char** argv) {
 	assert(tfsDelete("b") == TECNICOFS_ERROR_FILE_NOT_FOUND);
 	assert(tfsUnmount() == 0);
 
+	printf("SUCCESS - DELETE\n");
+
 	return 0;
 }

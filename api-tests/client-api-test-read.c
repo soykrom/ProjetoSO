@@ -45,5 +45,7 @@ int main(int argc, char** argv) {
     assert(tfsDelete("abc") == 0);
     assert(tfsUnmount() == 0);
 
+	printf("SUCCESS - READ\n");
+
     return 0;
 }
