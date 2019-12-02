@@ -147,7 +147,7 @@ int tfsWrite(int fd, char *buffer, int len){
 
   sprintf(mens, "w %d ", fd);
   strncat(mens, buffer, len);
-  
+
   write(sockfd, mens, strlen(mens) + 1);
 
   if(read(sockfd, mens, MAXLINHA + 1) < 0){
@@ -171,9 +171,9 @@ int tfsRead(int fd, char *buffer, int len){
     exit(TECNICOFS_ERROR_OTHER);
   }
 
-  if(atoi(buffer) < 0){
+  if(atoi(buffer) < 0) {
     return atoi(buffer);
   }
-  
+
   return strlen(buffer);
 }

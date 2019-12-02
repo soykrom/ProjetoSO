@@ -157,7 +157,7 @@ void* clientHandler(void *arg) {
                     n = strlen(buffer) + 1;
                     if(write(socket, buffer, n) != n)
                         exit(EXIT_FAILURE);
-                    
+
                     break;
                 }
 
@@ -169,7 +169,7 @@ void* clientHandler(void *arg) {
                 if(write(socket, buffer, n) != n)
                     exit(EXIT_FAILURE);
 
-                UNLOCK(&locks[pos]);    
+                UNLOCK(&locks[pos]);
                 break;
 
             case 'd':
@@ -184,6 +184,7 @@ void* clientHandler(void *arg) {
                         exit(EXIT_FAILURE);
                     break;
                 }
+
                 pthread_mutex_lock(&fLock);
 
                 for(int i = 0; i < MAX_OPEN_FILES; i++) {
@@ -221,6 +222,7 @@ void* clientHandler(void *arg) {
 
                 iNumber = lookup(fs, name, pos);
 
+
                 if(iNumber == -1) {
                     strcpy(buffer, "-5");
 
@@ -245,9 +247,8 @@ void* clientHandler(void *arg) {
                     }
                 }
 
-
                 if(fileFound) {
-                    pthread_mutex_unlock(&fLock);   
+                    pthread_mutex_unlock(&fLock);
                     break;
                 }
 
@@ -260,7 +261,7 @@ void* clientHandler(void *arg) {
                     for(int i = 0; i < MAX_OPEN_FILES; i++) {
                         if(UserOpenFiles[i].iNumber == -2) {
                             UserOpenFiles[i].iNumber = iNumber;
-                            
+
                             UserOpenFiles[i].currentMode = perm;
 
                             sprintf(buffer, "%d", i);
@@ -281,13 +282,13 @@ void* clientHandler(void *arg) {
                     if(write(socket, buffer, n) != n)
                         exit(EXIT_FAILURE);
                 }
-                pthread_mutex_unlock(&fLock);   
+                pthread_mutex_unlock(&fLock);
 
                 break;
             case 'w':
                 fd = atoi(name);
 
-                pthread_mutex_lock(&fLock);   
+                pthread_mutex_lock(&fLock);
 
                 if(UserOpenFiles[fd].iNumber == -2) {
                     strcpy(buffer, "-8");
@@ -295,7 +296,9 @@ void* clientHandler(void *arg) {
                     n = strlen(buffer) + 1;
                     if(write(socket, buffer, n) != n)
                         exit(EXIT_FAILURE);
-                  break;
+
+                    pthread_mutex_unlock(&fLock);
+                    break;
                 }
 
                 if(UserOpenFiles[fd].currentMode == RW || UserOpenFiles[fd].currentMode == WRITE) {
@@ -314,21 +317,24 @@ void* clientHandler(void *arg) {
                         exit(EXIT_FAILURE);
 
                 }
-                pthread_mutex_unlock(&fLock);   
+                pthread_mutex_unlock(&fLock);
                 break;
 
             case 'l':
                 fd = atoi(name);
 
-                pthread_mutex_lock(&fLock);   
+                pthread_mutex_lock(&fLock);
 
                 if(UserOpenFiles[fd].iNumber == -2) {
                     strcpy(buffer, "-8");
 
                     n = strlen(buffer) + 1;
-                    if(write(socket, buffer, n) != n)
+                    if(write(socket, buffer, n) != n){
                         exit(EXIT_FAILURE);
-                  break;
+                    }
+                    pthread_mutex_unlock(&fLock);
+
+                    break;
                 }
 
 
@@ -342,30 +348,22 @@ void* clientHandler(void *arg) {
                             exit(EXIT_FAILURE);
                     } else if(n != strlen(buffer)) {
                         exit(EXIT_FAILURE);
+                    } else {
+                        n = strlen(buffer) + 1;
+                        if(write(socket, buffer, n) != n)
+                            exit(EXIT_FAILURE);
                     }
-                    //Acho que aqui não é preciso fazer + 1 porque ja tem o /0.
-                    n = strlen(buffer) + 1;
-                    if(write(socket, buffer, n) != n) //2 writes in a row (line 337 goes here)
-                        exit(EXIT_FAILURE);
-                } else { //Else meant to connect to first if (line 335)?
+                } else {
 
-                    if(n != strlen(buffer)) {
-                        exit(EXIT_FAILURE);
-                    }
+                    strcpy(buffer, "-10");
 
                     n = strlen(buffer) + 1;
                     if(write(socket, buffer, n) != n)
                         exit(EXIT_FAILURE);
-                    //} else { //else connceted to else??
-                        strcpy(buffer, "-10");
+                }
+                pthread_mutex_unlock(&fLock);
 
-                    n = strlen(buffer) + 1;
-                    if(write(socket, buffer, n) != n)
-                        exit(EXIT_FAILURE);
-                    }
-                    pthread_mutex_unlock(&fLock);   
-
-                    break;
+                break;
 
             case 'x':
                 fd = atoi(name);
@@ -380,9 +378,14 @@ void* clientHandler(void *arg) {
                 }
 
                 UserOpenFiles[fd].iNumber = -2;
-                //UserOpenFiles[fd].owner = -2;
-                //UserOpenFiles[fd].ownerPermissions = -2;
-                //UserOpenFiles[fd].othersPermissions = -2;
+
+                    if(n != strlen(buffer)) {
+                        exit(EXIT_FAILURE);
+                    }
+
+                    n = strlen(buffer) + 1;
+                    if(write(socket, buffer, n) != n)
+                        exit(EXIT_FAILURE);*/
                 UserOpenFiles[fd].currentMode = -2;
 
                 --currentOpenFiles;
@@ -522,7 +525,6 @@ int main(int argc, char *argv[]) {
             exit(EXIT_FAILURE);
         }
     }
-    printf("pre print\n");
     print_tecnicofs_tree(fpO, fs);
 
     //Will save the end time of the the threads' execution.
