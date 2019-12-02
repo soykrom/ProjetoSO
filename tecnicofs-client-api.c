@@ -52,10 +52,10 @@ int tfsUnmount(){
   if(write(sockfd, buffer, n) != n)
     exit(TECNICOFS_ERROR_OTHER);
 
-  if(read(sockfd, buffer, MAXLINHA + 1) < 0)
+  if(read(sockfd, &n, sizeof(int)) < 0)
     exit(TECNICOFS_ERROR_OTHER);
 
-  if(atoi(buffer) != 1 && close(sockfd) < 0)
+  if(n != 1 && close(sockfd) < 0)
     exit(TECNICOFS_ERROR_OTHER);
 
   return 0;
@@ -72,10 +72,10 @@ int tfsCreate(char *filename, permission ownerPermissions, permission othersPerm
   if(write(sockfd, buffer, n) != n)
     exit(TECNICOFS_ERROR_OTHER);
 
-  if(read(sockfd, buffer, MAXLINHA + 1) < 0)
+  if(read(sockfd, &n, sizeof(int)) < 0)
     exit(TECNICOFS_ERROR_OTHER);
 
-  return atoi(buffer);
+  return n;
 }
 
 int tfsDelete(char *filename) {
@@ -88,10 +88,10 @@ int tfsDelete(char *filename) {
   if(write(sockfd, buffer, n) != n)
     exit(TECNICOFS_ERROR_OTHER);
 
-  if(read(sockfd, buffer, MAXLINHA + 1) < 0)
+  if(read(sockfd, &n, sizeof(int)) < 0)
     exit(TECNICOFS_ERROR_OTHER);
 
-  return atoi(buffer);
+  return n;
 }
 
 int tfsRename(char *filenameOld, char *filenameNew) {
@@ -104,10 +104,10 @@ int tfsRename(char *filenameOld, char *filenameNew) {
   if(write(sockfd, buffer, n) != n)
     exit(TECNICOFS_ERROR_OTHER);
 
-  if(read(sockfd, buffer, MAXLINHA + 1) < 0)
+  if(read(sockfd, &n, sizeof(int)) < 0)
     exit(TECNICOFS_ERROR_OTHER);
 
-  return atoi(buffer);
+  return n;
 }
 
 int tfsOpen(char *filename, permission mode){
@@ -120,10 +120,10 @@ int tfsOpen(char *filename, permission mode){
   if(write(sockfd, buffer, n) != n)
     exit(TECNICOFS_ERROR_OTHER);
 
-  if(read(sockfd, buffer, MAXLINHA + 1) < 0)
+  if(read(sockfd, &n, sizeof(int)) < 0)
     exit(TECNICOFS_ERROR_OTHER);
 
-  return atoi(buffer);
+  return n;
 }
 
 int tfsClose(int fd){
@@ -136,25 +136,26 @@ int tfsClose(int fd){
   if(write(sockfd, buffer, n) != n)
     exit(TECNICOFS_ERROR_OTHER);
 
-  if(read(sockfd, buffer, MAXLINHA + 1) < 0)
+  if(read(sockfd, &n, sizeof(int)) < 0)
     exit(TECNICOFS_ERROR_OTHER);
 
-  return atoi(buffer);
+  return n;
 }
 
 int tfsWrite(int fd, char *buffer, int len){
   char mens[MAXLINHA];
+  int n;
 
   sprintf(mens, "w %d ", fd);
   strncat(mens, buffer, len);
 
   write(sockfd, mens, strlen(mens) + 1);
 
-  if(read(sockfd, mens, MAXLINHA + 1) < 0){
+  if(read(sockfd, &n, sizeof(int)) < 0){
     exit(TECNICOFS_ERROR_OTHER);
   }
 
-  return atoi(mens);
+  return n;
 }
 
 int tfsRead(int fd, char *buffer, int len){
@@ -167,12 +168,16 @@ int tfsRead(int fd, char *buffer, int len){
   if(write(sockfd, mens, n) != n)
     exit(TECNICOFS_ERROR_OTHER);
 
-  if(read(sockfd, buffer, MAXLINHA + 1) < 0){
+  if(read(sockfd, &n, sizeof(int)) < 0){
     exit(TECNICOFS_ERROR_OTHER);
   }
 
-  if(atoi(buffer) < 0) {
-    return atoi(buffer);
+  if(n < 0){
+    return n;
+  }
+
+  if(read(sockfd, buffer, MAXLINHA + 1) < 0){
+    exit(TECNICOFS_ERROR_OTHER);
   }
 
   return strlen(buffer);

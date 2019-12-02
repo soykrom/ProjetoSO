@@ -92,6 +92,7 @@ void* clientHandler(void *arg) {
     uid_t cli_uid = args[1];
     int iNumber, n, fd, fileFound = 0;
     int currentOpenFiles = 0;
+    int msg;
     char token;
     int pos = 0;
     char name[MAX_INPUT_SIZE], otherInfo[MAX_INPUT_SIZE];
@@ -113,18 +114,18 @@ void* clientHandler(void *arg) {
                 LOCK(&locks[pos]);
 
                 if(lookup(fs, name, pos) != -1) {
-                    strcpy(buffer, "-4");
+                    msg = -4;
 
                 } else {
                     iNumber = inode_create(cli_uid, atoi(otherInfo)/10, atoi(otherInfo)%10);
 
                     create(fs, name, iNumber, pos);
 
-                    strcpy(buffer, "0");
+                    msg = 0;
                 }
 
-                n = strlen(buffer) + 1;
-                if(write(socket, buffer, n) != n)
+                n = sizeof(int);
+                if(write(socket, &msg, n) != n)
                     exit(EXIT_FAILURE);
 
                 UNLOCK(&locks[pos]);
@@ -133,17 +134,17 @@ void* clientHandler(void *arg) {
             case 'r':
                 LOCK(&locks[pos]);
 
-                if(lookup(fs, name, pos) == -1) { //file to be renamed doesn't exist
-                    strcpy(buffer, "-5");
+                if(lookup(fs, name, pos) == -1) {
+                    msg = -5;
 
-                    n = strlen(buffer) + 1;
-                    if(write(socket, buffer, n) != n)
+                    n = sizeof(int);
+                    if(write(socket, &msg, n) != n)
                         exit(EXIT_FAILURE);
                     break;
                 } else if(lookup(fs, otherInfo, pos) != -1) { //file with new name already exists
-                    strcpy(buffer, "-4");
+                    msg = -4;
 
-                    n = strlen(buffer) + 1;
+                    n = sizeof(int);
                     if(write(socket, buffer, n) != n)
                         exit(EXIT_FAILURE);
                     break;
@@ -152,10 +153,10 @@ void* clientHandler(void *arg) {
                 inode_get(iNumber, &uid, &ownerPerm, &othersPerm, NULL, 0);
 
                 if(uid != cli_uid) {
-                    strcpy(buffer, "-6");
+                    msg = -6;
 
-                    n = strlen(buffer) + 1;
-                    if(write(socket, buffer, n) != n)
+                    n = sizeof(int);
+                    if(write(socket, &msg, n) != n)
                         exit(EXIT_FAILURE);
 
                     break;
@@ -163,10 +164,10 @@ void* clientHandler(void *arg) {
 
                 change_name(fs, name, otherInfo, pos);
 
-                strcpy(buffer, "0");
+                msg = 0;
 
-                n = strlen(buffer) + 1;
-                if(write(socket, buffer, n) != n)
+                n = sizeof(int);
+                if(write(socket, &msg, n) != n)
                     exit(EXIT_FAILURE);
 
                 UNLOCK(&locks[pos]);
@@ -177,10 +178,10 @@ void* clientHandler(void *arg) {
 
                 iNumber = lookup(fs, name, pos);
                 if(iNumber == -1) {
-                    strcpy(buffer, "-5");
+                    msg = -5;
 
-                    n = strlen(buffer) + 1;
-                    if(write(socket, buffer, n) != n)
+                    n = sizeof(int);
+                    if(write(socket, &msg, n) != n)
                         exit(EXIT_FAILURE);
                     break;
                 }
@@ -197,25 +198,25 @@ void* clientHandler(void *arg) {
                 pthread_mutex_unlock(&fLock);
 
                 if(fileFound) {
-                    strcpy(buffer, "-9");
+                    msg = -9;
                 } else {
                     delete(fs, name, pos);
                     inode_delete(iNumber);
-                    strcpy(buffer, "0");
+                    msg = 0;
                 }
 
-                n = strlen(buffer) + 1;
-                if(write(socket, buffer, n) != n)
+                n = sizeof(int);
+                if(write(socket, &msg, n) != n)
                     exit(EXIT_FAILURE);
 
                 UNLOCK(&locks[pos]);
                 break;
             case 'o':
                 if(currentOpenFiles == MAX_OPEN_FILES) {
-                    strcpy(buffer, "-7");
+                    msg = -7;
 
-                    n = strlen(buffer) + 1;
-                    if(write(socket, buffer, n) != n)
+                    n = sizeof(int);
+                    if(write(socket, &msg, n) != n)
                         exit(EXIT_FAILURE);
                     break;
                 }
@@ -224,10 +225,10 @@ void* clientHandler(void *arg) {
 
 
                 if(iNumber == -1) {
-                    strcpy(buffer, "-5");
+                    msg = -5;
 
-                    n = strlen(buffer) + 1;
-                    if(write(socket, buffer, n) != n)
+                    n = sizeof(int);
+                    if(write(socket, &msg, n) != n)
                         exit(EXIT_FAILURE);
                     break;
                 }
@@ -236,12 +237,12 @@ void* clientHandler(void *arg) {
 
                 for(int i = 0; i < MAX_OPEN_FILES; i++) {
                     if(UserOpenFiles[i].iNumber == iNumber) {
-                        strcpy(buffer, "-9");
+                        msg = -9;
 
                         fileFound = 1;
 
-                        n = strlen(buffer) + 1;
-                        if(write(socket, buffer, n) != n)
+                        n = sizeof(int);
+                        if(write(socket, &msg, n) != n)
                             exit(EXIT_FAILURE);
                         break;
                     }
@@ -261,13 +262,12 @@ void* clientHandler(void *arg) {
                     for(int i = 0; i < MAX_OPEN_FILES; i++) {
                         if(UserOpenFiles[i].iNumber == -2) {
                             UserOpenFiles[i].iNumber = iNumber;
-
                             UserOpenFiles[i].currentMode = perm;
 
-                            sprintf(buffer, "%d", i);
+                            msg = i;
 
-                            n = strlen(buffer) + 1;
-                            if(write(socket, buffer, n) != n)
+                            n = sizeof(int);
+                            if(write(socket, &msg, n) != n)
                                 exit(EXIT_FAILURE);
 
                             ++currentOpenFiles;
@@ -276,10 +276,10 @@ void* clientHandler(void *arg) {
                         }
                     }
                 } else {
-                    strcpy(buffer, "-10");
+                    msg = -10;
 
-                    n = strlen(buffer) + 1;
-                    if(write(socket, buffer, n) != n)
+                    n = sizeof(int);
+                    if(write(socket, &msg, n) != n)
                         exit(EXIT_FAILURE);
                 }
                 pthread_mutex_unlock(&fLock);
@@ -291,10 +291,10 @@ void* clientHandler(void *arg) {
                 pthread_mutex_lock(&fLock);
 
                 if(UserOpenFiles[fd].iNumber == -2) {
-                    strcpy(buffer, "-8");
+                    msg = -8;
 
-                    n = strlen(buffer) + 1;
-                    if(write(socket, buffer, n) != n)
+                    n = sizeof(int);
+                    if(write(socket, &msg, n) != n)
                         exit(EXIT_FAILURE);
 
                     pthread_mutex_unlock(&fLock);
@@ -304,16 +304,16 @@ void* clientHandler(void *arg) {
                 if(UserOpenFiles[fd].currentMode == RW || UserOpenFiles[fd].currentMode == WRITE) {
                     if(inode_set(UserOpenFiles[fd].iNumber, otherInfo, strlen(otherInfo)) != 0)
                         exit(EXIT_FAILURE);
-                    strcpy(buffer, "0");
+                    msg = 0;
 
-                    n = strlen(buffer) + 1;
-                    if(write(socket, buffer, n) != n)
+                    n = sizeof(int);
+                    if(write(socket, &msg, n) != n)
                         exit(EXIT_FAILURE);
                 } else {
-                    strcpy(buffer, "-10");
+                    msg = -10;
 
-                    n = strlen(buffer) + 1;
-                    if(write(socket, buffer, n) != n)
+                    n = sizeof(int);
+                    if(write(socket, &msg, n) != n)
                         exit(EXIT_FAILURE);
 
                 }
@@ -323,45 +323,50 @@ void* clientHandler(void *arg) {
             case 'l':
                 fd = atoi(name);
 
-                pthread_mutex_lock(&fLock);
+                if(pthread_mutex_lock(&fLock)) exit(EXIT_FAILURE);
 
                 if(UserOpenFiles[fd].iNumber == -2) {
-                    strcpy(buffer, "-8");
+                    n = -8;
+                    //if(write(socket, &msg, n) != n){
+                      //  exit(EXIT_FAILURE);
+                    //}
+                    //if(pthread_mutex_unlock(&fLock)) exit(EXIT_FAILURE);
 
-                    n = strlen(buffer) + 1;
-                    if(write(socket, buffer, n) != n){
-                        exit(EXIT_FAILURE);
-                    }
-                    pthread_mutex_unlock(&fLock);
-
-                    break;
+                    //break;
                 }
 
 
-                if(UserOpenFiles[fd].currentMode == RW || UserOpenFiles[fd].currentMode == READ) {
+                else if(UserOpenFiles[fd].currentMode == RW || UserOpenFiles[fd].currentMode == READ) {
                     n = inode_get(UserOpenFiles[fd].iNumber, NULL, NULL, NULL, buffer, atoi(otherInfo) - 1);
                     if(n == 0) {
                         strcpy(buffer, "");
 
                         n = strlen(buffer) + 1;
-                        if(write(socket, buffer, n) != n)
-                            exit(EXIT_FAILURE);
+                        //if(write(socket, buffer, n) != n)
+                          //  exit(EXIT_FAILURE);
                     } else if(n != strlen(buffer)) {
                         exit(EXIT_FAILURE);
                     } else {
                         n = strlen(buffer) + 1;
-                        if(write(socket, buffer, n) != n)
-                            exit(EXIT_FAILURE);
+                        printf("%s\n", buffer);
+                        printf("%d\n", n);
+                        //if(write(socket, buffer, n) != n)
+                          //  exit(EXIT_FAILURE);
                     }
                 } else {
 
-                    strcpy(buffer, "-10");
-
-                    n = strlen(buffer) + 1;
-                    if(write(socket, buffer, n) != n)
-                        exit(EXIT_FAILURE);
+                    n = -10;
+                  //  if(write(socket, &msg, n) != n)
+                    //    exit(EXIT_FAILURE);
                 }
                 pthread_mutex_unlock(&fLock);
+
+                if(write(socket, &n, sizeof(int)) != sizeof(int))
+                  exit(EXIT_FAILURE);
+                if(n > 0){
+                  if(write(socket, buffer, n) != n)
+                    exit(EXIT_FAILURE);
+                }
 
                 break;
 
@@ -369,39 +374,31 @@ void* clientHandler(void *arg) {
                 fd = atoi(name);
 
                 if(UserOpenFiles[fd].iNumber == -2) {
-                    strcpy(buffer, "-5");
+                    msg = -5;
 
-                    n = strlen(buffer) + 1;
-                    if(write(socket, buffer, n) != n)
+                    n = sizeof(int);
+                    if(write(socket, &msg, n) != n)
                         exit(EXIT_FAILURE);
                   break;
                 }
 
                 UserOpenFiles[fd].iNumber = -2;
-
-                    if(n != strlen(buffer)) {
-                        exit(EXIT_FAILURE);
-                    }
-
-                    n = strlen(buffer) + 1;
-                    if(write(socket, buffer, n) != n)
-                        exit(EXIT_FAILURE);*/
                 UserOpenFiles[fd].currentMode = -2;
 
                 --currentOpenFiles;
 
-                strcpy(buffer, "0");
+                msg = 0;
 
-                n = strlen(buffer) + 1;
-                if(write(socket, buffer, n) != n)
+                n = sizeof(int);
+                if(write(socket, &msg, n) != n)
                     exit(EXIT_FAILURE);
 
                 break;
             case 'e':
-                strcpy(buffer, "0");
+                msg = 0;
 
-                n = strlen(buffer) + 1;
-                if(write(socket, buffer, n) != n)
+                n = sizeof(int);
+                if(write(socket, &msg, n) != n)
                     exit(EXIT_FAILURE);
 
                 return NULL;
@@ -534,6 +531,7 @@ int main(int argc, char *argv[]) {
     time = (double) (end.tv_sec - start.tv_sec) + (double) (end.tv_usec - start.tv_usec)/1000000;
     printf("TecnicoFS completed in %0.4f seconds.\n", time);
 
+    if(pthread_mutex_destroy(&fLock)) exit(EXIT_FAILURE);
 
     free_tecnicofs(fs);
     free(threads);

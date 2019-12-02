@@ -10,7 +10,7 @@ int main(int argc, char** argv) {
 		printf("Usage: %s sock_path\n", argv[0]);
 		exit(0);
 	}
-	
+
 	int fd = -1;
 	assert(tfsMount(argv[1]) == 0);
 	assert(tfsCreate("a", RW, READ) == 0);
@@ -21,8 +21,10 @@ int main(int argc, char** argv) {
 
 	assert((fd = tfsClose(0)) == 0);
 
+
 	printf("Test: delete file success");
 	assert(tfsDelete("a") == 0);
+
 
 	printf("Test: delete file that does not exist");
 	assert(tfsDelete("b") == TECNICOFS_ERROR_FILE_NOT_FOUND);
