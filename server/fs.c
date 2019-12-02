@@ -131,11 +131,9 @@ void change_name(tecnicofs *fs, char *oldName, char *newName, int h1) {
 void print_tecnicofs_tree(FILE *fp, tecnicofs *fs) {
 	int i;
 
-	printf("Inside\n");
 	for(i = 0; i < fs -> nBuckets; i++) {
 		if(!fs->bstRoot[i]) continue;
 
-		printf("Bravo Six going dark\n");
 		print_tree(fp, fs->bstRoot[i]);
 	}
 

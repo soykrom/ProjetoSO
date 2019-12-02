@@ -21,6 +21,7 @@
 #include "fs.h"
 #include "lib/inodes.h"
 #include "macros.h"
+#include "../client/tecnicofs-api-constants.h"
 
 #define MAX_COMMANDS 10
 #define MAX_INPUT_SIZE 100
@@ -51,6 +52,7 @@ typedef struct openFiles{
 FILE *fpO;
 tecnicofs *fs;
 char inputCommands[MAX_COMMANDS][MAX_INPUT_SIZE];
+openFiles UserOpenFiles[MAX_OPEN_FILES];
 
 void signalHandler() {
     if(close(sockfd) != 0)
@@ -96,12 +98,20 @@ void* clientHandler(void *arg) {
     char token;
     int pos = 0;
     char name[MAX_INPUT_SIZE], otherInfo[MAX_INPUT_SIZE];
-    openFiles UserOpenFiles[MAX_OPEN_FILES];
     uid_t uid;
     permission ownerPerm, othersPerm;
+    int mask;
+    sigset_t set;
 
-    openFilesInit(UserOpenFiles);
+    if(sigemptyset(&set) == -1) exit(EXIT_FAILURE);
 
+    if(sigaddset(&set, SIGINT) == -1) exit(EXIT_FAILURE);
+    
+    mask = pthread_sigmask(SIG_BLOCK, &set, NULL);
+    if(mask != 0) {
+        perror("failed to set sigmask");
+        exit(EXIT_FAILURE);
+    }
 
     while(1) {
         fileFound = 0;
@@ -114,14 +124,14 @@ void* clientHandler(void *arg) {
                 LOCK(&locks[pos]);
 
                 if(lookup(fs, name, pos) != -1) {
-                    msg = -4;
+                    msg = TECNICOFS_ERROR_FILE_ALREADY_EXISTS;
 
                 } else {
                     iNumber = inode_create(cli_uid, atoi(otherInfo)/10, atoi(otherInfo)%10);
 
                     create(fs, name, iNumber, pos);
 
-                    msg = 0;
+                    msg = TECNICOFS_SUCCESS;
                 }
 
                 n = sizeof(int);
@@ -135,14 +145,14 @@ void* clientHandler(void *arg) {
                 LOCK(&locks[pos]);
 
                 if(lookup(fs, name, pos) == -1) {
-                    msg = -5;
+                    msg = TECNICOFS_ERROR_FILE_NOT_FOUND;
 
                     n = sizeof(int);
                     if(write(socket, &msg, n) != n)
                         exit(EXIT_FAILURE);
                     break;
                 } else if(lookup(fs, otherInfo, pos) != -1) { //file with new name already exists
-                    msg = -4;
+                    msg = TECNICOFS_ERROR_FILE_ALREADY_EXISTS;
 
                     n = sizeof(int);
                     if(write(socket, buffer, n) != n)
@@ -153,7 +163,7 @@ void* clientHandler(void *arg) {
                 inode_get(iNumber, &uid, &ownerPerm, &othersPerm, NULL, 0);
 
                 if(uid != cli_uid) {
-                    msg = -6;
+                    msg = TECNICOFS_ERROR_PERMISSION_DENIED;
 
                     n = sizeof(int);
                     if(write(socket, &msg, n) != n)
@@ -164,7 +174,7 @@ void* clientHandler(void *arg) {
 
                 change_name(fs, name, otherInfo, pos);
 
-                msg = 0;
+                msg = TECNICOFS_SUCCESS;
 
                 n = sizeof(int);
                 if(write(socket, &msg, n) != n)
@@ -178,7 +188,7 @@ void* clientHandler(void *arg) {
 
                 iNumber = lookup(fs, name, pos);
                 if(iNumber == -1) {
-                    msg = -5;
+                    msg = TECNICOFS_ERROR_FILE_NOT_FOUND;
 
                     n = sizeof(int);
                     if(write(socket, &msg, n) != n)
@@ -186,7 +196,7 @@ void* clientHandler(void *arg) {
                     break;
                 }
 
-                pthread_mutex_lock(&fLock);
+                if(pthread_mutex_lock(&fLock)) exit(EXIT_FAILURE);
 
                 for(int i = 0; i < MAX_OPEN_FILES; i++) {
                     if(UserOpenFiles[i].iNumber == iNumber) {
@@ -195,14 +205,14 @@ void* clientHandler(void *arg) {
                     }
                 }
 
-                pthread_mutex_unlock(&fLock);
+                if(pthread_mutex_unlock(&fLock)) exit(EXIT_FAILURE);
 
                 if(fileFound) {
-                    msg = -9;
+                    msg = TECNICOFS_ERROR_FILE_IS_OPEN;
                 } else {
                     delete(fs, name, pos);
                     inode_delete(iNumber);
-                    msg = 0;
+                    msg = TECNICOFS_SUCCESS;
                 }
 
                 n = sizeof(int);
@@ -213,7 +223,7 @@ void* clientHandler(void *arg) {
                 break;
             case 'o':
                 if(currentOpenFiles == MAX_OPEN_FILES) {
-                    msg = -7;
+                    msg = TECNICOFS_ERROR_MAXED_OPEN_FILES;
 
                     n = sizeof(int);
                     if(write(socket, &msg, n) != n)
@@ -225,7 +235,7 @@ void* clientHandler(void *arg) {
 
 
                 if(iNumber == -1) {
-                    msg = -5;
+                    msg = TECNICOFS_ERROR_FILE_NOT_FOUND;
 
                     n = sizeof(int);
                     if(write(socket, &msg, n) != n)
@@ -233,11 +243,11 @@ void* clientHandler(void *arg) {
                     break;
                 }
 
-                pthread_mutex_lock(&fLock);
+                if(pthread_mutex_lock(&fLock)) exit(EXIT_FAILURE);
 
                 for(int i = 0; i < MAX_OPEN_FILES; i++) {
                     if(UserOpenFiles[i].iNumber == iNumber) {
-                        msg = -9;
+                        msg = TECNICOFS_ERROR_FILE_IS_OPEN;
 
                         fileFound = 1;
 
@@ -249,7 +259,7 @@ void* clientHandler(void *arg) {
                 }
 
                 if(fileFound) {
-                    pthread_mutex_unlock(&fLock);
+                    if(pthread_mutex_unlock(&fLock)) exit(EXIT_FAILURE);
                     break;
                 }
 
@@ -276,48 +286,48 @@ void* clientHandler(void *arg) {
                         }
                     }
                 } else {
-                    msg = -10;
+                    msg = TECNICOFS_ERROR_INVALID_MODE;
 
                     n = sizeof(int);
                     if(write(socket, &msg, n) != n)
                         exit(EXIT_FAILURE);
                 }
-                pthread_mutex_unlock(&fLock);
+                if(pthread_mutex_unlock(&fLock)) exit(EXIT_FAILURE);
 
                 break;
             case 'w':
                 fd = atoi(name);
 
-                pthread_mutex_lock(&fLock);
+                if(pthread_mutex_lock(&fLock)) exit(EXIT_FAILURE);
 
                 if(UserOpenFiles[fd].iNumber == -2) {
-                    msg = -8;
+                    msg = TECNICOFS_ERROR_FILE_NOT_OPEN;
 
                     n = sizeof(int);
                     if(write(socket, &msg, n) != n)
                         exit(EXIT_FAILURE);
 
-                    pthread_mutex_unlock(&fLock);
+                    if(pthread_mutex_unlock(&fLock)) exit(EXIT_FAILURE);
                     break;
                 }
 
                 if(UserOpenFiles[fd].currentMode == RW || UserOpenFiles[fd].currentMode == WRITE) {
                     if(inode_set(UserOpenFiles[fd].iNumber, otherInfo, strlen(otherInfo)) != 0)
                         exit(EXIT_FAILURE);
-                    msg = 0;
+                    msg = TECNICOFS_SUCCESS;
 
                     n = sizeof(int);
                     if(write(socket, &msg, n) != n)
                         exit(EXIT_FAILURE);
                 } else {
-                    msg = -10;
+                    msg = TECNICOFS_ERROR_INVALID_MODE;
 
                     n = sizeof(int);
                     if(write(socket, &msg, n) != n)
                         exit(EXIT_FAILURE);
 
                 }
-                pthread_mutex_unlock(&fLock);
+                if(pthread_mutex_unlock(&fLock)) exit(EXIT_FAILURE);
                 break;
 
             case 'l':
@@ -326,44 +336,27 @@ void* clientHandler(void *arg) {
                 if(pthread_mutex_lock(&fLock)) exit(EXIT_FAILURE);
 
                 if(UserOpenFiles[fd].iNumber == -2) {
-                    n = -8;
-                    //if(write(socket, &msg, n) != n){
-                      //  exit(EXIT_FAILURE);
-                    //}
-                    //if(pthread_mutex_unlock(&fLock)) exit(EXIT_FAILURE);
-
-                    //break;
-                }
-
-
-                else if(UserOpenFiles[fd].currentMode == RW || UserOpenFiles[fd].currentMode == READ) {
+                    n = TECNICOFS_ERROR_FILE_NOT_OPEN;     
+                } else if(UserOpenFiles[fd].currentMode == RW || UserOpenFiles[fd].currentMode == READ) {
                     n = inode_get(UserOpenFiles[fd].iNumber, NULL, NULL, NULL, buffer, atoi(otherInfo) - 1);
                     if(n == 0) {
                         strcpy(buffer, "");
 
                         n = strlen(buffer) + 1;
-                        //if(write(socket, buffer, n) != n)
-                          //  exit(EXIT_FAILURE);
                     } else if(n != strlen(buffer)) {
                         exit(EXIT_FAILURE);
                     } else {
                         n = strlen(buffer) + 1;
-                        printf("%s\n", buffer);
-                        printf("%d\n", n);
-                        //if(write(socket, buffer, n) != n)
-                          //  exit(EXIT_FAILURE);
                     }
                 } else {
-
-                    n = -10;
-                  //  if(write(socket, &msg, n) != n)
-                    //    exit(EXIT_FAILURE);
+                    n = TECNICOFS_ERROR_INVALID_MODE;
                 }
-                pthread_mutex_unlock(&fLock);
+
+                if(pthread_mutex_unlock(&fLock)) exit(EXIT_FAILURE);
 
                 if(write(socket, &n, sizeof(int)) != sizeof(int))
                   exit(EXIT_FAILURE);
-                if(n > 0){
+                if(n > 0) {
                   if(write(socket, buffer, n) != n)
                     exit(EXIT_FAILURE);
                 }
@@ -373,8 +366,10 @@ void* clientHandler(void *arg) {
             case 'x':
                 fd = atoi(name);
 
+                if(pthread_mutex_lock(&fLock)) exit(EXIT_FAILURE);
+
                 if(UserOpenFiles[fd].iNumber == -2) {
-                    msg = -5;
+                    msg = TECNICOFS_ERROR_FILE_NOT_FOUND;
 
                     n = sizeof(int);
                     if(write(socket, &msg, n) != n)
@@ -387,7 +382,9 @@ void* clientHandler(void *arg) {
 
                 --currentOpenFiles;
 
-                msg = 0;
+                if(pthread_mutex_unlock(&fLock)) exit(EXIT_FAILURE);
+
+                msg = TECNICOFS_SUCCESS;
 
                 n = sizeof(int);
                 if(write(socket, &msg, n) != n)
@@ -395,7 +392,7 @@ void* clientHandler(void *arg) {
 
                 break;
             case 'e':
-                msg = 0;
+                msg = TECNICOFS_SUCCESS;
 
                 n = sizeof(int);
                 if(write(socket, &msg, n) != n)
@@ -454,6 +451,8 @@ int main(int argc, char *argv[]) {
     inode_table_init();
 
     create_locks(fs);
+
+    openFilesInit(UserOpenFiles);
 
     numberThreads = MAX_CONNECTS;
     threads = (pthread_t*) malloc(sizeof(pthread_t*) * numberThreads);
@@ -537,7 +536,4 @@ int main(int argc, char *argv[]) {
     free(threads);
 
     inode_table_destroy();
-
-
-
 }

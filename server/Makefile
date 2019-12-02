@@ -25,10 +25,10 @@ lib/hash.o: lib/hash.c lib/hash.h
 lib/inodes.o: lib/inodes.c lib/inodes.h
 	$(CC) $(CFLAGS) -o lib/inodes.o -c lib/inodes.c
 
-fs-rwlock.o: fs.c fs.h lib/bst.h lib/hash.h lib/inodes.h macros.h
+fs-rwlock.o: fs.c fs.h lib/bst.h lib/hash.h lib/inodes.h macros.h ../client/tecnicofs-api-constants.h
 	$(CC) $(CFLAGS) -DRWLOCK -o fs-rwlock.o -c fs.c
 
-main-rwlock.o: main.c lib/bst.h lib/hash.h fs.h lib/inodes.h macros.h 
+main-rwlock.o: main.c lib/bst.h lib/hash.h fs.h lib/inodes.h macros.h ../client/tecnicofs-api-constants.h
 	$(CC) $(CFLAGS) -DRWLOCK -o main-rwlock.o -c main.c
 
 clean:
